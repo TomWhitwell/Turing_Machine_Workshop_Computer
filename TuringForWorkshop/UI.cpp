@@ -53,12 +53,6 @@ void UI::Tick()
     }
 }
 
-uint8_t UI::QuantiseToStep(uint32_t knobVal, uint8_t steps, uint32_t range)
-{
-    uint16_t step_size = range / steps;
-    return knobVal / step_size;
-}
-
 void UI::SlowUI()
 {
 
@@ -70,6 +64,21 @@ void UI::SlowUI()
         app->divideKnobChanged(step);
         lastDivideStep = step;
     }
+
+    // Check for Length knob changes
+    knobTemp = app->KnobX();
+    step = QuantiseToStep(knobTemp, numLengthSteps, 4105);
+    if (step != lastLength)
+    {
+        app->lengthKnobChanged(step);
+        lastLength = step;
+    }
+}
+
+uint8_t UI::QuantiseToStep(uint32_t knobVal, uint8_t steps, uint32_t range)
+{
+    uint16_t step_size = range / steps;
+    return knobVal / step_size;
 }
 
 void UI::TriggerPulse1()
@@ -80,6 +89,7 @@ void UI::TriggerPulse1()
     ledPulseTicksRemaining1 = ledPulseLength;
     ledPulseActive1 = true;
     outputPulseActive1 = true;
+    app->updateMainTuring();
 }
 
 void UI::TriggerPulse2()
@@ -90,6 +100,7 @@ void UI::TriggerPulse2()
     ledPulseTicksRemaining2 = ledPulseLength;
     ledPulseActive2 = true;
     outputPulseActive2 = true;
+    app->updateDivTuring();
 }
 
 void UI::EndPulse1()

@@ -1,8 +1,27 @@
 // MainApp.cpp
 #include "MainApp.h"
+#include <cstdio>
 
 MainApp::MainApp()
+
+    // Initialise the Turing machines with variations of the memory card ID, unique but not random
+    : turingDAC1(8, MemoryCardID()),
+      turingDAC2(8, MemoryCardID() * 2),
+      turingPWM1(8, MemoryCardID() * 3),
+      turingPWM2(8, MemoryCardID() * 4),
+      turingPulseLength1(8, MemoryCardID() * 5),
+      turingPulseLength2(8, MemoryCardID() * 6)
 {
+
+    // Load or initialise config
+    cfg.load(0); // 1 = force reset
+    auto &settings = cfg.get();
+
+    printf("Range 0: %d, Divide: %d\n", settings.preset[0].range, settings.divide);
+    printf("Range 1: %d, Divide: %d\n", settings.preset[1].range, settings.divide);
+
+    settings.preset[1].range = 23;
+    cfg.save();
     clk.SetPhaseIncrement(178957);
     ui.init(this, &clk);
 }
@@ -123,3 +142,54 @@ void MainApp::divideKnobChanged(uint8_t step)
 {
     clk.UpdateDivide(step);
 };
+
+void MainApp::lengthKnobChanged(uint8_t length)
+{
+    turingDAC1.updateLength(length);
+    turingDAC2.updateLength(length);
+    turingPWM1.updateLength(length);
+    turingPWM2.updateLength(length);
+    turingPulseLength1.updateLength(length);
+    turingPulseLength2.updateLength(length);
+}
+
+void MainApp::updateMainTuring()
+{
+
+    // Update Turing Machines
+    turingDAC1.Update(KnobVal(Main), maxRange);
+    turingPWM1.Update(KnobVal(Main), maxRange);
+    turingPulseLength1.Update(KnobVal(Main), maxRange);
+
+    AudioOut1(turingDAC1.DAC_8() << 4);
+
+    // test settings
+    int low_note = 48;  // c3
+    int high_note = 84; // c6
+    int scale = 3;      // minor pent
+    int sieve = 0;      // scale
+    int midi_note = turingPWM1.MidiNote(low_note, high_note, scale, sieve);
+    CVOut1MIDINote(midi_note);
+}
+
+void MainApp::updateDivTuring()
+{
+    turingDAC2.Update(KnobVal(Main), maxRange);
+    turingPWM2.Update(KnobVal(Main), maxRange);
+    turingPulseLength2.Update(KnobVal(Main), maxRange);
+
+    AudioOut2(turingDAC2.DAC_8() << 4);
+
+    // test settings
+    int low_note = 48;  // c3
+    int high_note = 84; // c6
+    int scale = 3;      // minor pent
+    int sieve = 0;      // scale
+    int midi_note = turingPWM2.MidiNote(low_note, high_note, scale, sieve);
+    CVOut2MIDINote(midi_note);
+}
+
+uint32_t MainApp::MemoryCardID()
+{
+    return static_cast<uint32_t>(UniqueCardID());
+}

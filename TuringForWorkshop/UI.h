@@ -38,4 +38,9 @@ private:
     uint8_t lastDivideStep = 0;
     uint8_t numDivideSteps = 9;
     uint8_t QuantiseToStep(uint32_t knobVal, uint8_t steps, uint32_t range);
+
+    uint8_t lastLength = 0;
+    uint8_t const numLengthSteps = 8;
+    uint8_t const lengths[8] = {2, 3, 4, 5, 6, 8, 12, 16};
+    
 };

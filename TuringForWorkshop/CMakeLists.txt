@@ -27,11 +27,10 @@ pico_sdk_init()
 add_executable(${PROJECT_NAME}
     main.cpp
     MainApp.cpp
-    # App.cpp
     Clock.cpp
-    # Sequence.cpp
-    # Config.cpp
+    Config.cpp
     UI.cpp
+    Turing.cpp
 )
 
 # Add include directories
@@ -48,8 +47,14 @@ set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".elf")
 
 # Link against the libraries you’re using (as per ComputerCard dependencies)
 target_link_libraries(${PROJECT_NAME}
-pico_unique_id pico_stdlib hardware_dma hardware_i2c hardware_pwm hardware_adc hardware_spi
+pico_unique_id pico_stdlib hardware_dma hardware_i2c hardware_pwm hardware_adc hardware_spi hardware_flash hardware_sync pico_stdio_usb
 )
+
+pico_enable_stdio_usb(${PROJECT_NAME} 1)
+pico_enable_stdio_uart(${PROJECT_NAME} 0)
+pico_enable_stdio_semihosting(${PROJECT_NAME} 0)  # Enable semihosting
+
+
  
 # Generate UF2, bin, and other output formats
 pico_add_extra_outputs(${PROJECT_NAME})

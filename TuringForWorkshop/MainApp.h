@@ -4,6 +4,8 @@
 #include "ComputerCard.h"
 #include "Clock.h"
 #include "UI.h"
+#include "Turing.h"
+#include "Config.h"
 
 class MainApp : public ComputerCard
 {
@@ -26,8 +28,23 @@ public:
     uint16_t KnobY();
 
     void divideKnobChanged(uint8_t step);
+    void lengthKnobChanged(uint8_t length);
+
+    void updateMainTuring();
+    void updateDivTuring();
+
+    uint32_t MemoryCardID();
 
 private:
     Clock clk;
     UI ui;
+    Config cfg;
+
+    Turing turingDAC1;
+    Turing turingDAC2;
+    Turing turingPWM1;
+    Turing turingPWM2;
+    Turing turingPulseLength1;
+    Turing turingPulseLength2;
+    uint16_t maxRange = 4095; // maximum pot value
 };
