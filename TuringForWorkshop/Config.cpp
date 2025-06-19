@@ -2,6 +2,7 @@
 #include "hardware/flash.h"
 #include "hardware/sync.h"
 #include <cstring>
+#include "hardware/regs/addressmap.h"
 
 uint32_t const Config::MAGIC = 0x434F4E46;
 size_t const Config::FLASH_SIZE = 2 * 1024 * 1024;

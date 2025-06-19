@@ -7,7 +7,7 @@
 #include "Turing.h"
 #include "Config.h"
 
-#define RAM_FUNC __not_in_flash_func
+#define RAM_FUNC
 
 class MainApp : public ComputerCard
 {
@@ -39,6 +39,8 @@ public:
 
     uint32_t MemoryCardID();
 
+    void Housekeeping();
+
 private:
     Clock clk;
     UI ui;
@@ -57,7 +59,4 @@ private:
 
     uint32_t lastTap = 0;
     uint32_t debounceTimeout = 480; // 10ms in 48khz clock ticks
-
-    uint32_t hk_threshold = 48; // calls Housekeeping every 1ms
-    void Housekeeping();
 };

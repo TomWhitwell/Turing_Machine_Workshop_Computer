@@ -32,7 +32,7 @@ MainApp::MainApp()
     ui.init(this, &clk);
 }
 
-void __not_in_flash_func(MainApp::ProcessSample)()
+void(MainApp::ProcessSample)()
 {
     // Call tap before ui.tick and before clk.tick, so that reset triggered tap is tapped make it to ui.
     if (tapReceived())
@@ -67,13 +67,6 @@ void __not_in_flash_func(MainApp::ProcessSample)()
 
     // CVOut1((clk.GetPhase() >> 20) - 2048); // just for debugging, remove
     // CVOut2((clk.TEST_subclock_phase >> 20) - 2048);
-
-    static int hk_counter = 0;
-    if (hk_counter++ >= hk_threshold)
-    {
-        hk_counter = 0;
-        Housekeeping();
-    }
 }
 
 void MainApp::Housekeeping()
@@ -104,11 +97,11 @@ void MainApp::Housekeeping()
         break;
     case 1:
         // Task 1:
-
+        printf("Housekeeping firing task %d on core %d\n", taskIndex, get_core_num());
         break;
     case 2:
         // Task 2:
-
+        printf("Housekeeping firing task %d on core %d\n", taskIndex, get_core_num());
         break;
     }
 
@@ -147,7 +140,7 @@ bool MainApp::PulseInConnected2()
     return Connected(Pulse2);
 }
 
-bool __not_in_flash_func(MainApp::tapReceived)()
+bool(MainApp::tapReceived)()
 {
     if (PulseInConnected1())
     {

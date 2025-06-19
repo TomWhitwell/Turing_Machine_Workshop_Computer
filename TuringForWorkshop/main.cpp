@@ -1,21 +1,58 @@
-
+/************************************************************
+ *  Core-split bootstrap for ComputerCard on RP2040
+ *
+ *  • Core 0 – USB-CDC stdio + flash-save service
+ *  • Core 1 – ComputerCard audio engine (48 kHz ISR)
+ *
+ *  Requires:
+ *    - CMakeLists.txt links pico_stdlib & pico_multicore
+ *    - PICO_COPY_TO_RAM 1  (so flash stalls don’t hurt audio)
+ ***********************************************************/
 
 #include "ComputerCard.h"
+#include "pico/multicore.h"
 #include "Clock.h"
 #include "UI.h"
 #include "MainApp.h"
 #include "pico/stdlib.h"
 #include <cstdio>
 
+/* Global handle published by Core 1 after MainApp is constructed */
+static MainApp *volatile gApp = nullptr;
+
+static void core1_entry()
+{
+    static MainApp app; // all ComputerCard work lives here
+    gApp = &app;        // publish pointer for Core 0
+
+    printf("Core1 firing on core %d\n", get_core_num());
+
+    app.EnableNormalisationProbe();
+    app.Run(); // never returns
+}
+
 int main()
 {
 
-    stdio_usb_init(); // Initialize USB serial
-    // stdio_init_all(); // Initializes whatever stdio you’ve enabled in CMake (USB, UART, or semihosting)
+    stdio_usb_init(); // Initialize USB serial // Claims for Core 0
+    sleep_ms(1500);
+    printf("Main firing on core %d\n", get_core_num());
 
-    // sleep_ms(2000); // Optional: wait for USB host connection
+    /* 2 )  launch the audio engine on core 1 */
+    multicore_launch_core1(core1_entry);
 
-    MainApp app;
-    app.EnableNormalisationProbe();
-    app.Run(); // Starts the main audio loop
+    /* 3 )  wait until Core 1 has published MainApp* (rarely more than 100 µs) */
+    while (!gApp)
+        tight_loop_contents();
+
+    absolute_time_t next = make_timeout_time_ms(1);
+
+    while (true)
+    {
+        gApp->Housekeeping();
+
+        // ------------- pace the loop  ---------------
+        sleep_until(next); // keeps 1-ms period
+        next = delayed_by_ms(next, 1);
+    }
 }

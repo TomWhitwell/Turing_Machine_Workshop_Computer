@@ -49,7 +49,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".elf")
 
 # Link against the libraries you’re using (as per ComputerCard dependencies)
 target_link_libraries(${PROJECT_NAME}
-pico_unique_id pico_stdlib hardware_dma hardware_i2c hardware_pwm hardware_adc hardware_spi hardware_flash hardware_sync pico_stdio_usb pico_platform
+pico_unique_id pico_stdlib hardware_dma hardware_i2c hardware_pwm hardware_adc hardware_spi hardware_flash hardware_sync pico_stdio_usb pico_platform pico_multicore
 )
 
 pico_enable_stdio_usb(${PROJECT_NAME} 1)
