@@ -1,6 +1,7 @@
 // MainApp.cpp
 #include "MainApp.h"
 #include <cstdio>
+#include "pico/time.h" // temporary for testing
 
 MainApp::MainApp()
 
@@ -15,24 +16,37 @@ MainApp::MainApp()
 
     // Load or initialise config
     cfg.load(0); // 1 = force reset
-    auto &settings = cfg.get();
+    // auto &settings = cfg.get();
+    settings = &cfg.get();
 
-    printf("Range 0: %d, Divide: %d\n", settings.preset[0].range, settings.divide);
-    printf("Range 1: %d, Divide: %d\n", settings.preset[1].range, settings.divide);
+    // printf("Range 0: %d, Divide: %d\n", settings.preset[0].range, settings.divide);
+    // printf("Range 1: %d, Divide: %d\n", settings.preset[1].range, settings.divide);
+    printf("BPM %f\n", ((float)settings->bpm / 10.0));
 
-    settings.preset[1].range = 23;
+    settings->preset[1].range = 23;
     cfg.save();
-    clk.SetPhaseIncrement(178957);
+
+    CurrentBPM10 = settings->bpm; // load bpm from settings file NB bpm always 10x i.e 1200 = 120.0 bpm.
+    clk.setBPM10(CurrentBPM10);
+    // clk.SetPhaseIncrement(178957);
     ui.init(this, &clk);
 }
 
-void MainApp::ProcessSample()
+void __not_in_flash_func(MainApp::ProcessSample)()
 {
     // Call tap before ui.tick and before clk.tick, so that reset triggered tap is tapped make it to ui.
     if (tapReceived())
     {
         uint32_t now = clk.GetTicks();
-        clk.TapTempo(now);
+        if (now - lastTap > debounceTimeout)
+        {
+            newBPM10 = clk.TapTempo(now);
+            lastTap = now;
+        }
+        else
+        {
+            // Do nothing, debounced click
+        }
     }
 
     if (extPulse1Received())
@@ -53,6 +67,54 @@ void MainApp::ProcessSample()
 
     // CVOut1((clk.GetPhase() >> 20) - 2048); // just for debugging, remove
     // CVOut2((clk.TEST_subclock_phase >> 20) - 2048);
+
+    static int hk_counter = 0;
+    if (hk_counter++ >= hk_threshold)
+    {
+        hk_counter = 0;
+        Housekeeping();
+    }
+}
+
+void MainApp::Housekeeping()
+{
+    // runs at
+
+    static uint8_t taskIndex = 0;
+
+    switch (taskIndex)
+    {
+    case 0:
+
+        // Task 0 If BPM10 changed, save to flash
+        if (newBPM10 > 0 && newBPM10 != CurrentBPM10)
+        {
+
+            settings->bpm = newBPM10;
+            CurrentBPM10 = newBPM10;
+            newBPM10 = 0;
+            printf("starting to save\n");
+            uint64_t start_time = time_us_64(); // TESTING
+            cfg.save();
+
+            uint64_t end_time = time_us_64();              // TESTING
+            uint64_t duration_us = end_time - start_time;  // TESTING
+            printf("Saving time: %llu µs\n", duration_us); // TESTING
+        }
+        break;
+    case 1:
+        // Task 1:
+
+        break;
+    case 2:
+        // Task 2:
+
+        break;
+    }
+
+    taskIndex++;
+    if (taskIndex > 2) // Update this to match your last case number
+        taskIndex = 0;
 }
 
 void MainApp::PulseLed1(bool status)
@@ -85,7 +147,7 @@ bool MainApp::PulseInConnected2()
     return Connected(Pulse2);
 }
 
-bool MainApp::tapReceived()
+bool __not_in_flash_func(MainApp::tapReceived)()
 {
     if (PulseInConnected1())
     {

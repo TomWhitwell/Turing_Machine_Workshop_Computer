@@ -10,7 +10,7 @@ public:
     uint32_t GetPhase() const;
     bool IsRisingEdge() const;
     bool IsRisingEdgeMult() const;
-    void TapTempo(uint32_t tapTime);
+    uint16_t TapTempo(uint32_t tapTime); // returns BPM10 when tempo is set, otherwise retuns 0
     uint32_t GetTicks() const;
     void UpdateDivide(uint8_t step);
     void setExternalClock1(bool ext);
@@ -19,6 +19,8 @@ public:
     void ExtPulse2();
     bool ExtPulseReceived1();
     bool ExtPulseReceived2();
+    void setBPM10(uint16_t bpm10);
+    uint16_t getBPM10();
 
     uint32_t TEST_subclock_phase = 0;
 
@@ -32,6 +34,8 @@ private:
     uint32_t lastTapTime = 0;
     uint32_t totalTicks = 0;
     void SetPhaseIncrementFromTicks(uint32_t ticks_per_beat);
+    void SetPhaseIncrementFromBPM10(uint16_t BPM10);
+    uint16_t GetBPM10FromPhaseIncrement();
 
     uint16_t subclockDividor = 16;
     // const uint16_t subclockDivisions[9] = {512, 256, 128, 64, 32, 16, 8, 4, 2};
@@ -45,4 +49,6 @@ private:
     bool receivedExtPulse2 = false;
 
     uint32_t PHASE_WRAP_THRESHOLD = 0xF0000000;
+
+    uint32_t clockSpeed = 48000; // just to calculate BPM, you can't change clock speed by changing this
 };

@@ -7,8 +7,12 @@
 #include "Turing.h"
 #include "Config.h"
 
+#define RAM_FUNC __not_in_flash_func
+
 class MainApp : public ComputerCard
 {
+    Config::Data *settings = nullptr;
+
 public:
     MainApp();
     void ProcessSample() override;
@@ -47,4 +51,13 @@ private:
     Turing turingPulseLength1;
     Turing turingPulseLength2;
     uint16_t maxRange = 4095; // maximum pot value
+
+    uint16_t CurrentBPM10 = 1200; // 10x bpm default
+    uint16_t newBPM10 = 0;        // 10x bpm default
+
+    uint32_t lastTap = 0;
+    uint32_t debounceTimeout = 480; // 10ms in 48khz clock ticks
+
+    uint32_t hk_threshold = 48; // calls Housekeeping every 1ms
+    void Housekeeping();
 };

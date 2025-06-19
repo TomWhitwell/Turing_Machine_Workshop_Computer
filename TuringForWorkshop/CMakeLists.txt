@@ -19,6 +19,8 @@ cmake_minimum_required(VERSION 3.13)
 # Define the project name
 project(TuringForWorkshop)
 
+set(PICO_COPY_TO_RAM 1)
+
 # Pull in the Pico SDK
 include(pico_sdk_import.cmake)
 pico_sdk_init()
@@ -47,14 +49,12 @@ set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".elf")
 
 # Link against the libraries you’re using (as per ComputerCard dependencies)
 target_link_libraries(${PROJECT_NAME}
-pico_unique_id pico_stdlib hardware_dma hardware_i2c hardware_pwm hardware_adc hardware_spi hardware_flash hardware_sync pico_stdio_usb
+pico_unique_id pico_stdlib hardware_dma hardware_i2c hardware_pwm hardware_adc hardware_spi hardware_flash hardware_sync pico_stdio_usb pico_platform
 )
 
 pico_enable_stdio_usb(${PROJECT_NAME} 1)
 pico_enable_stdio_uart(${PROJECT_NAME} 0)
 pico_enable_stdio_semihosting(${PROJECT_NAME} 0)  # Enable semihosting
-
-
  
 # Generate UF2, bin, and other output formats
 pico_add_extra_outputs(${PROJECT_NAME})

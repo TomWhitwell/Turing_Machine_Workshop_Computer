@@ -26,8 +26,15 @@ public:
     {
         uint32_t magic = MAGIC;
 
-        uint8_t bpm_lo = 120;
-        uint8_t bpm_hi = 0;
+        union
+        {
+            struct
+            {
+                uint8_t bpm_lo;
+                uint8_t bpm_hi;
+            };
+            uint16_t bpm = 1605;
+        };
         uint8_t divide = 5;
         uint8_t cvRange = 0;
 

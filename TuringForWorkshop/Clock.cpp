@@ -1,6 +1,7 @@
 #include "Clock.h"
 
 void Clock::Tick()
+
 {
     uint32_t prev = phase;
     uint32_t prev_mult = phase * subclockMultiplier;
@@ -103,8 +104,36 @@ void Clock::SetPhaseIncrementFromTicks(uint32_t ticks_per_beat)
     phase_increment = (uint64_t(1) << 32) / ticks_per_beat;
 }
 
-void Clock::TapTempo(uint32_t tapTime)
+void Clock::SetPhaseIncrementFromBPM10(uint16_t BPM10)
 {
+    if (BPM10 == 0)
+        return;
+
+    // BPM10 = BPM * 10
+    // Beats per second = BPM10 / 600
+    // ticks_per_beat = clockSpeed / (BPM10 / 600)
+    // Simplified to: ticks_per_beat = (clockSpeed * 600) / BPM10
+
+    uint32_t ticks_per_beat = (clockSpeed * 600UL) / BPM10;
+    phase_increment = (uint64_t(1) << 32) / ticks_per_beat;
+}
+
+uint16_t Clock::GetBPM10FromPhaseIncrement()
+{
+    if (phase_increment == 0)
+        return 0;
+
+    // Multiply first as 64-bit to avoid overflow
+    uint64_t temp = (uint64_t)phase_increment * clockSpeed * 600ULL;
+    uint32_t bpm10 = temp >> 32; // equivalent to dividing by 2^32
+
+    return (uint16_t)bpm10;
+}
+
+uint16_t Clock::TapTempo(uint32_t tapTime)
+{
+
+    uint16_t localBPM10 = 0;
     if (lastTapTime != 0)
     {
         uint32_t interval = tapTime - lastTapTime;
@@ -112,15 +141,17 @@ void Clock::TapTempo(uint32_t tapTime)
         if (interval > minInterval && interval < maxInterval)
         {
             SetPhaseIncrementFromTicks(interval);
+            localBPM10 = GetBPM10FromPhaseIncrement();
         }
         else
         {
             lastTapTime = 0; // reset tap system
-            return;
+            return 0;
         }
     }
     lastTapTime = tapTime;
     Reset();
+    return localBPM10;
 }
 
 void Clock::UpdateDivide(uint8_t step)
@@ -167,4 +198,17 @@ bool Clock::ExtPulseReceived2()
     bool temp = receivedExtPulse2;
     receivedExtPulse2 = false;
     return temp;
+}
+
+void Clock::setBPM10(uint16_t bpm10)
+{
+    // bypass tap tempo, set BPM directly
+    // BPM is always BPMx10 ie 120.0 bpm = 1200
+
+    SetPhaseIncrementFromBPM10(bpm10);
+}
+
+uint16_t Clock::getBPM10()
+{
+    return GetBPM10FromPhaseIncrement();
 }

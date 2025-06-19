@@ -46,6 +46,7 @@ void UI::Tick()
     EndPulse2();
 
     // Trigger SlowUI every threshold ticks
+    static int ui_counter = 0;
     if (ui_counter++ >= threshold)
     {
         ui_counter = 0;

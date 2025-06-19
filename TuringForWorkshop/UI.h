@@ -12,7 +12,6 @@ public:
 
 private:
     void SlowUI();
-    int ui_counter = 0;
     int threshold = 48; // how many ticks before calling slow UI = 1ms
     MainApp *app = nullptr;
     Clock *clk = nullptr;
@@ -20,8 +19,8 @@ private:
     bool led2Status = false;
     bool pulse1Status = false;
     bool pulse2Status = false;
-    int ledPulseLength = 480;    // number of ticks at 48khz = 10ms
-    int outputPulseLength = 240; // 8ms = just for testing should be more like 2ms
+    int ledPulseLength = 480;   // number of ticks at 48khz = 10ms
+    int outputPulseLength = 96; // 8ms = just for testing should be more like 2ms
     int ledPulseTicksRemaining1 = 0;
     int ledPulseTicksRemaining2 = 0;
     int outputPulseTicksRemaining1 = 0;
@@ -42,5 +41,4 @@ private:
     uint8_t lastLength = 0;
     uint8_t const numLengthSteps = 8;
     uint8_t const lengths[8] = {2, 3, 4, 5, 6, 8, 12, 16};
-    
 };
