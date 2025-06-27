@@ -7,8 +7,6 @@
 #include "Turing.h"
 #include "Config.h"
 
-#define RAM_FUNC
-
 class MainApp : public ComputerCard
 {
     Config::Data *settings = nullptr;
@@ -41,6 +39,14 @@ public:
 
     void Housekeeping();
 
+    void LoadSettings();
+
+    uint64_t processTime;     // TESTING
+    uint64_t lastProcessTime; // TESTING
+    uint64_t processStepTime; // TESTING
+
+    void blink(uint core, uint32_t interval_ms); // TESTING blinks LED related to core at given freq
+
 private:
     Clock clk;
     UI ui;
@@ -54,9 +60,17 @@ private:
     Turing turingPulseLength2;
     uint16_t maxRange = 4095; // maximum pot value
 
-    uint16_t CurrentBPM10 = 1200; // 10x bpm default
-    uint16_t newBPM10 = 0;        // 10x bpm default
+    volatile uint16_t CurrentBPM10 = 1200; // 10x bpm default
+    volatile uint16_t newBPM10 = 0;        // 10x bpm default
 
     uint32_t lastTap = 0;
     uint32_t debounceTimeout = 480; // 10ms in 48khz clock ticks
+
+    volatile bool runProcessSample = true;
+    volatile bool processSampleRunning = false;
+
+    uint64_t lastChangeTimeUs;
+    volatile bool pendingSave;
+
+
 };

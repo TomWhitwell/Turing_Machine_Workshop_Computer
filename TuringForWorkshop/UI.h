@@ -9,9 +9,9 @@ class UI
 public:
     void Tick();
     void init(MainApp *app, Clock *clock);
+    void SlowUI();
 
 private:
-    void SlowUI();
     int threshold = 48; // how many ticks before calling slow UI = 1ms
     MainApp *app = nullptr;
     Clock *clk = nullptr;

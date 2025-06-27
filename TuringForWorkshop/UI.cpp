@@ -44,14 +44,6 @@ void UI::Tick()
 
     EndPulse1(); // Countdown pulse timer and check if Pulse1 should be stopped
     EndPulse2();
-
-    // Trigger SlowUI every threshold ticks
-    static int ui_counter = 0;
-    if (ui_counter++ >= threshold)
-    {
-        ui_counter = 0;
-        SlowUI();
-    }
 }
 
 void UI::SlowUI()
@@ -60,6 +52,8 @@ void UI::SlowUI()
     // Check for divide knob changes
     uint16_t knobTemp = app->KnobY();
     uint16_t step = QuantiseToStep(knobTemp, numDivideSteps, 4105); // Range of 4105 to ensure 0-8 range on 4096 pot
+    if (step >= numDivideSteps)                                     // make sure it's in 0..8
+        step = numDivideSteps - 1;
     if (step != lastDivideStep)
     {
         app->divideKnobChanged(step);

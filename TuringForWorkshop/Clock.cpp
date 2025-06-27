@@ -130,28 +130,50 @@ uint16_t Clock::GetBPM10FromPhaseIncrement()
     return (uint16_t)bpm10;
 }
 
+// uint16_t Clock::TapTempo(uint32_t tapTime)
+// {
+
+//     uint16_t localBPM10 = 0;
+//     if (lastTapTime != 0)
+//     {
+//         uint32_t interval = tapTime - lastTapTime;
+
+//         if (interval > minInterval && interval < maxInterval)
+//         {
+//             SetPhaseIncrementFromTicks(interval);
+//             localBPM10 = GetBPM10FromPhaseIncrement();
+//         }
+//         else
+//         {
+//             lastTapTime = 0; // reset tap system
+//             return 0;
+//         }
+//     }
+//     lastTapTime = tapTime;
+//     Reset();
+//     return localBPM10;
+// }
+
 uint16_t Clock::TapTempo(uint32_t tapTime)
 {
-
-    uint16_t localBPM10 = 0;
-    if (lastTapTime != 0)
+    if (lastTapTime == 0)
     {
-        uint32_t interval = tapTime - lastTapTime;
-
-        if (interval > minInterval && interval < maxInterval)
-        {
-            SetPhaseIncrementFromTicks(interval);
-            localBPM10 = GetBPM10FromPhaseIncrement();
-        }
-        else
-        {
-            lastTapTime = 0; // reset tap system
-            return 0;
-        }
+        lastTapTime = tapTime;
+        return 0; // First tap: not enough data to calculate BPM
     }
+
+    uint32_t interval = tapTime - lastTapTime;
+
+    if (interval < minInterval || interval > maxInterval)
+    {
+        lastTapTime = 0; // Reset on invalid tap
+        return 0;
+    }
+
     lastTapTime = tapTime;
+    SetPhaseIncrementFromTicks(interval);
     Reset();
-    return localBPM10;
+    return GetBPM10FromPhaseIncrement();
 }
 
 void Clock::UpdateDivide(uint8_t step)

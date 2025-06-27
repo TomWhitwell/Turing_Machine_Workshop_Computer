@@ -2,6 +2,7 @@
 #include "MainApp.h"
 #include <cstdio>
 #include "pico/time.h" // temporary for testing
+#include <inttypes.h>  // temporary for testing
 
 MainApp::MainApp()
 
@@ -12,43 +13,49 @@ MainApp::MainApp()
       turingPWM2(8, MemoryCardID() * 4),
       turingPulseLength1(8, MemoryCardID() * 5),
       turingPulseLength2(8, MemoryCardID() * 6)
+
+{
+
+    ui.init(this, &clk);
+}
+
+void MainApp::LoadSettings()
 {
 
     // Load or initialise config
     cfg.load(0); // 1 = force reset
-    // auto &settings = cfg.get();
     settings = &cfg.get();
-
-    // printf("Range 0: %d, Divide: %d\n", settings.preset[0].range, settings.divide);
-    // printf("Range 1: %d, Divide: %d\n", settings.preset[1].range, settings.divide);
-    printf("BPM %f\n", ((float)settings->bpm / 10.0));
-
-    settings->preset[1].range = 23;
-    cfg.save();
-
     CurrentBPM10 = settings->bpm; // load bpm from settings file NB bpm always 10x i.e 1200 = 120.0 bpm.
     clk.setBPM10(CurrentBPM10);
-    // clk.SetPhaseIncrement(178957);
-    ui.init(this, &clk);
 }
 
-void(MainApp::ProcessSample)()
+void __not_in_flash_func(MainApp::ProcessSample)()
 {
+
+    if (!runProcessSample)
+        return;
+
+    processSampleRunning = true;
+
+    /* ───── ① time at entry ───── */
+    static uint64_t last_start_us = time_us_64(); // remembers previous call
+    const uint64_t start_us = time_us_64();       // microseconds since boot
+
+    /* Duration since the *previous* ProcessSample call
+       (should be ≈ 20.83 µs at 48 kHz) */
+    processStepTime = start_us - last_start_us;
+    last_start_us = start_us;
+
     // Call tap before ui.tick and before clk.tick, so that reset triggered tap is tapped make it to ui.
     if (tapReceived())
     {
         uint32_t now = clk.GetTicks();
-        if (now - lastTap > debounceTimeout)
+        uint16_t tempBPM = clk.TapTempo(now);
+        if (tempBPM > 0 && newBPM10 == 0)
         {
-            newBPM10 = clk.TapTempo(now);
-            lastTap = now;
-        }
-        else
-        {
-            // Do nothing, debounced click
+            newBPM10 = tempBPM;
         }
     }
-
     if (extPulse1Received())
     {
         uint32_t now = clk.GetTicks();
@@ -67,47 +74,68 @@ void(MainApp::ProcessSample)()
 
     // CVOut1((clk.GetPhase() >> 20) - 2048); // just for debugging, remove
     // CVOut2((clk.TEST_subclock_phase >> 20) - 2048);
+
+    const uint64_t end_us = time_us_64();
+    processTime = end_us - start_us;
+
+    blink(1, 250); // show that Core 1 is alive
+    processSampleRunning = false;
 }
 
 void MainApp::Housekeeping()
 {
-    // runs at
 
-    static uint8_t taskIndex = 0;
+    LedOn(2, pendingSave);
+    uint64_t nowUs = time_us_64();
 
-    switch (taskIndex)
+    // BPM changed?
+
+    if (newBPM10 > 0 && newBPM10 < 8000 && newBPM10 != CurrentBPM10)
     {
-    case 0:
+        settings->bpm = newBPM10;
+        CurrentBPM10 = newBPM10;
+        newBPM10 = 0;
 
-        // Task 0 If BPM10 changed, save to flash
-        if (newBPM10 > 0 && newBPM10 != CurrentBPM10)
-        {
-
-            settings->bpm = newBPM10;
-            CurrentBPM10 = newBPM10;
-            newBPM10 = 0;
-            printf("starting to save\n");
-            uint64_t start_time = time_us_64(); // TESTING
-            cfg.save();
-
-            uint64_t end_time = time_us_64();              // TESTING
-            uint64_t duration_us = end_time - start_time;  // TESTING
-            printf("Saving time: %llu µs\n", duration_us); // TESTING
-        }
-        break;
-    case 1:
-        // Task 1:
-        printf("Housekeeping firing task %d on core %d\n", taskIndex, get_core_num());
-        break;
-    case 2:
-        // Task 2:
-        printf("Housekeeping firing task %d on core %d\n", taskIndex, get_core_num());
-        break;
+        lastChangeTimeUs = nowUs;
+        pendingSave = true;
+    }
+    else if (newBPM10 > 0 && (newBPM10 >= 8000 || newBPM10 == CurrentBPM10))
+    {
+        // Clear invalid or duplicate BPM
+        newBPM10 = 0;
     }
 
-    taskIndex++;
-    if (taskIndex > 2) // Update this to match your last case number
-        taskIndex = 0;
+    // Has 2 seconds passed since last change, and save is pending?
+    if (pendingSave && (nowUs - lastChangeTimeUs >= 2000000))
+    {
+        // Ask audio core to stop
+        // requestADCStop();
+        // // Wait for it to stop
+        // while (!isADCStopped() || processSampleRunning)
+        // {
+        //     tight_loop_contents();
+        // };
+
+        // runProcessSample = false;
+        // while (processSampleRunning)
+        // {
+        //     tight_loop_contents();
+        // }
+
+        // Multicore blocking and interrupts handled in cfg.save()
+        cfg.save();
+
+        // // Restart audio core
+        // requestADCRestart();
+
+        // runProcessSample = true;
+
+        pendingSave = false;
+    }
+
+    blink(0, 250); // show that Core 0 is alive
+
+    ui.SlowUI(); // call knob checking etc
 }
 
 void MainApp::PulseLed1(bool status)
@@ -247,4 +275,21 @@ void MainApp::updateDivTuring()
 uint32_t MainApp::MemoryCardID()
 {
     return static_cast<uint32_t>(UniqueCardID());
+}
+
+void MainApp::blink(uint core, uint32_t interval_ms)
+{
+
+    // uint pin = get_core_num();
+    uint pin = core;
+    static absolute_time_t next_toggle_time[32]; // indexed by GPIO
+    static bool led_state[32] = {false};         // indexed by GPIO
+
+    if (absolute_time_diff_us(get_absolute_time(), next_toggle_time[pin]) < 0)
+    {
+        led_state[pin] = !led_state[pin];
+        LedOn(pin, led_state[pin]);
+
+        next_toggle_time[pin] = make_timeout_time_ms(interval_ms);
+    }
 }
