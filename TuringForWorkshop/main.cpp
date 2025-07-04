@@ -45,7 +45,7 @@ int main()
     stdio_usb_init(); // Initialize USB serial // Claims for Core 0
     sleep_ms(1000);
 
-    // prinft("Main firing on core %d\n", get_core_num());
+    printf("Main firing on core %d\n", get_core_num());
 
     // extern uint8_t __flash_binary_end;
     // // prinft("Flash ends at: 0x%08x\n", (uint32_t)&__flash_binary_end);

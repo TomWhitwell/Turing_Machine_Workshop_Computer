@@ -37,11 +37,11 @@ private:
     void SetPhaseIncrementFromBPM10(uint16_t BPM10);
     uint16_t GetBPM10FromPhaseIncrement();
 
-    uint16_t subclockDividor = 16;
+    volatile uint32_t subclockDividor = 16;
     // const uint16_t subclockDivisions[9] = {512, 256, 128, 64, 32, 16, 8, 4, 2};
-    const uint16_t subclockDivisions[9] = {256, 128, 64, 32, 16, 8, 4, 2, 1};
+    const uint16_t subclockDivisions[9] = {1024, 512, 256, 128, 64, 32, 16, 8, 4};
     const uint16_t subclockMultiplier = 16; // fastest clock multiplication, from which all other clocks are derived
-    uint16_t subclockCount = 0;
+    uint32_t subclockCount = 0;
     bool subclockSync = false;
     bool isExternalClock1 = false;
     bool isExternalClock2 = false;

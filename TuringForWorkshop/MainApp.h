@@ -28,6 +28,7 @@ public:
     uint16_t KnobMain();
     uint16_t KnobX();
     uint16_t KnobY();
+    bool ModeSwitch();
 
     void divideKnobChanged(uint8_t step);
     void lengthKnobChanged(uint8_t length);
@@ -65,12 +66,6 @@ private:
 
     uint32_t lastTap = 0;
     uint32_t debounceTimeout = 480; // 10ms in 48khz clock ticks
-
-    volatile bool runProcessSample = true;
-    volatile bool processSampleRunning = false;
-
     uint64_t lastChangeTimeUs;
     volatile bool pendingSave;
-
-
 };

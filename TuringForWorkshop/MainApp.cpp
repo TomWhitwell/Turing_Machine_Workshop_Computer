@@ -32,20 +32,6 @@ void MainApp::LoadSettings()
 void __not_in_flash_func(MainApp::ProcessSample)()
 {
 
-    if (!runProcessSample)
-        return;
-
-    processSampleRunning = true;
-
-    /* ───── ① time at entry ───── */
-    static uint64_t last_start_us = time_us_64(); // remembers previous call
-    const uint64_t start_us = time_us_64();       // microseconds since boot
-
-    /* Duration since the *previous* ProcessSample call
-       (should be ≈ 20.83 µs at 48 kHz) */
-    processStepTime = start_us - last_start_us;
-    last_start_us = start_us;
-
     // Call tap before ui.tick and before clk.tick, so that reset triggered tap is tapped make it to ui.
     if (tapReceived())
     {
@@ -75,11 +61,7 @@ void __not_in_flash_func(MainApp::ProcessSample)()
     // CVOut1((clk.GetPhase() >> 20) - 2048); // just for debugging, remove
     // CVOut2((clk.TEST_subclock_phase >> 20) - 2048);
 
-    const uint64_t end_us = time_us_64();
-    processTime = end_us - start_us;
-
-    blink(1, 250); // show that Core 1 is alive
-    processSampleRunning = false;
+    blink(1, 50); // show that Core 1 is alive
 }
 
 void MainApp::Housekeeping()
@@ -108,28 +90,7 @@ void MainApp::Housekeeping()
     // Has 2 seconds passed since last change, and save is pending?
     if (pendingSave && (nowUs - lastChangeTimeUs >= 2000000))
     {
-        // Ask audio core to stop
-        // requestADCStop();
-        // // Wait for it to stop
-        // while (!isADCStopped() || processSampleRunning)
-        // {
-        //     tight_loop_contents();
-        // };
-
-        // runProcessSample = false;
-        // while (processSampleRunning)
-        // {
-        //     tight_loop_contents();
-        // }
-
-        // Multicore blocking and interrupts handled in cfg.save()
         cfg.save();
-
-        // // Restart audio core
-        // requestADCRestart();
-
-        // runProcessSample = true;
-
         pendingSave = false;
     }
 
@@ -221,6 +182,11 @@ uint16_t MainApp::KnobY()
     return KnobVal(Y);
 }
 
+bool MainApp::ModeSwitch()
+{ // 1 = up 0 = middle (or down)
+    return SwitchVal() == Up;
+}
+
 void MainApp::divideKnobChanged(uint8_t step)
 {
     clk.UpdateDivide(step);
@@ -264,11 +230,24 @@ void MainApp::updateDivTuring()
     AudioOut2(turingDAC2.DAC_8() << 4);
 
     // test settings
-    int low_note = 48;  // c3
-    int high_note = 84; // c6
-    int scale = 3;      // minor pent
-    int sieve = 0;      // scale
-    int midi_note = turingPWM2.MidiNote(low_note, high_note, scale, sieve);
+    // int low_note = 48;  // c3
+    // int high_note = 84; // c6
+    // int scale = 3;      // minor pent
+    // int sieve = 0;      // scale
+    // int midi_note = turingPWM2.MidiNote(low_note, high_note, scale, sieve);
+
+    bool p = ModeSwitch();
+    int base_note = 36; // C2
+    int range = settings->preset[p].range;
+    int low_note = base_note;
+    int high_note = base_note + range * 12 + 12; // covers (range + 1) octaves
+
+    int midi_note = turingPWM1.MidiNote(
+        low_note,
+        high_note,
+        settings->preset[p].scale,
+        settings->preset[p].notes);
+
     CVOut2MIDINote(midi_note);
 }
 
