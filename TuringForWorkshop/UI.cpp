@@ -63,10 +63,14 @@ void UI::SlowUI()
     // Check for Length knob changes
     knobTemp = app->KnobX();
     step = QuantiseToStep(knobTemp, numLengthSteps, 4105);
-    if (step != lastLength)
+
+    int newlen = lengths[step];
+
+    if (newlen != lastLength)
     {
-        app->lengthKnobChanged(step);
-        lastLength = step;
+        app->lengthKnobChanged(newlen);
+
+        lastLength = newlen;
     }
 }
 

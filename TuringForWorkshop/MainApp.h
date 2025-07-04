@@ -48,6 +48,8 @@ public:
 
     void blink(uint core, uint32_t interval_ms); // TESTING blinks LED related to core at given freq
 
+    void updateLedState();
+
 private:
     Clock clk;
     UI ui;
@@ -68,4 +70,16 @@ private:
     uint32_t debounceTimeout = 480; // 10ms in 48khz clock ticks
     uint64_t lastChangeTimeUs;
     volatile bool pendingSave;
+
+    bool pulseLed1_status = 0;
+    bool pulseLed2_status = 0;
+
+    enum LedMode
+    {
+        STATIC_PATTERN,
+        DYNAMIC_PWM
+    };
+    LedMode ledMode = DYNAMIC_PWM;
+    uint64_t lengthChangeStart = 0;
+    void showLengthPattern(int length);
 };

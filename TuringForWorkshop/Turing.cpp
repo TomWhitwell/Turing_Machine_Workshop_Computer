@@ -3,8 +3,8 @@
 Turing::Turing(int length, uint32_t seed)
 {
     _length = length;
-    _seed = seed;
-    _sequence = random(65535);
+    randomSeed(seed);
+    _sequence = next() & 0xFFFF;
 }
 
 // Call this each time the clock 'ticks'

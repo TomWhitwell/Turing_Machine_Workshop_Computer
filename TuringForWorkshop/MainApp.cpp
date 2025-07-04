@@ -4,6 +4,25 @@
 #include "pico/time.h" // temporary for testing
 #include <inttypes.h>  // temporary for testing
 
+// Gamma-corrected brightness table for MIDI notes 0–127 (scaled to 0–4095)
+const uint16_t midiToBrightness[128] = {
+    0, 0, 0, 1, 2, 3, 5, 7,
+    9, 12, 15, 19, 23, 27, 32, 37,
+    43, 49, 56, 63, 70, 78, 87, 95,
+    105, 115, 125, 136, 147, 159, 171, 184,
+    197, 211, 225, 240, 256, 272, 288, 305,
+    322, 340, 359, 378, 398, 418, 438, 460,
+    482, 504, 527, 550, 574, 599, 624, 650,
+    676, 703, 730, 758, 787, 816, 846, 876,
+    907, 938, 970, 1003, 1036, 1070, 1104, 1139,
+    1175, 1211, 1248, 1285, 1323, 1362, 1401, 1441,
+    1481, 1522, 1564, 1606, 1649, 1693, 1737, 1782,
+    1827, 1873, 1920, 1967, 2015, 2063, 2112, 2162,
+    2212, 2264, 2315, 2367, 2420, 2474, 2528, 2583,
+    2639, 2695, 2751, 2809, 2867, 2926, 2985, 3045,
+    3106, 3167, 3229, 3292, 3355, 3419, 3484, 3549,
+    3615, 3681, 3749, 3817, 3885, 3954, 4024, 4095};
+
 MainApp::MainApp()
 
     // Initialise the Turing machines with variations of the memory card ID, unique but not random
@@ -61,13 +80,13 @@ void __not_in_flash_func(MainApp::ProcessSample)()
     // CVOut1((clk.GetPhase() >> 20) - 2048); // just for debugging, remove
     // CVOut2((clk.TEST_subclock_phase >> 20) - 2048);
 
-    blink(1, 50); // show that Core 1 is alive
+    // blink(1, 50); // show that Core 1 is alive
 }
 
 void MainApp::Housekeeping()
 {
 
-    LedOn(2, pendingSave);
+    // LedOn(2, pendingSave);
     uint64_t nowUs = time_us_64();
 
     // BPM changed?
@@ -94,19 +113,23 @@ void MainApp::Housekeeping()
         pendingSave = false;
     }
 
-    blink(0, 250); // show that Core 0 is alive
+    // blink(0, 250); // show that Core 0 is alive
 
     ui.SlowUI(); // call knob checking etc
+
+    updateLedState();
 }
 
 void MainApp::PulseLed1(bool status)
 {
-    LedOn(4, status);
+    // LedOn(4, status);
+    pulseLed1_status = status;
 }
 
 void MainApp::PulseLed2(bool status)
 {
-    LedOn(5, status);
+    // LedOn(5, status);
+    pulseLed2_status = status;
 }
 
 void MainApp::PulseOutput1(bool status)
@@ -200,6 +223,9 @@ void MainApp::lengthKnobChanged(uint8_t length)
     turingPWM2.updateLength(length);
     turingPulseLength1.updateLength(length);
     turingPulseLength2.updateLength(length);
+
+    // This is where to place the LED animation for length changes
+    showLengthPattern(length);
 }
 
 void MainApp::updateMainTuring()
@@ -212,12 +238,18 @@ void MainApp::updateMainTuring()
 
     AudioOut1(turingDAC1.DAC_8() << 4);
 
-    // test settings
-    int low_note = 48;  // c3
-    int high_note = 84; // c6
-    int scale = 3;      // minor pent
-    int sieve = 0;      // scale
-    int midi_note = turingPWM1.MidiNote(low_note, high_note, scale, sieve);
+    bool p = ModeSwitch();
+    int base_note = 48; // C3
+    int range = settings->preset[p].range;
+    int low_note = base_note;
+    int high_note = base_note + range * 12 + 12; // covers (range + 1) octaves
+
+    int midi_note = turingPWM1.MidiNote(
+        low_note,
+        high_note,
+        settings->preset[p].scale,
+        settings->preset[p].notes);
+
     CVOut1MIDINote(midi_note);
 }
 
@@ -229,20 +261,13 @@ void MainApp::updateDivTuring()
 
     AudioOut2(turingDAC2.DAC_8() << 4);
 
-    // test settings
-    // int low_note = 48;  // c3
-    // int high_note = 84; // c6
-    // int scale = 3;      // minor pent
-    // int sieve = 0;      // scale
-    // int midi_note = turingPWM2.MidiNote(low_note, high_note, scale, sieve);
-
     bool p = ModeSwitch();
-    int base_note = 36; // C2
+    int base_note = 48; // C3
     int range = settings->preset[p].range;
     int low_note = base_note;
     int high_note = base_note + range * 12 + 12; // covers (range + 1) octaves
 
-    int midi_note = turingPWM1.MidiNote(
+    int midi_note = turingPWM2.MidiNote(
         low_note,
         high_note,
         settings->preset[p].scale,
@@ -270,5 +295,73 @@ void MainApp::blink(uint core, uint32_t interval_ms)
         LedOn(pin, led_state[pin]);
 
         next_toggle_time[pin] = make_timeout_time_ms(interval_ms);
+    }
+}
+
+void MainApp::showLengthPattern(int length)
+{
+    struct PatternEntry
+    {
+        int length;
+        uint8_t bitmask;
+    };
+
+    const PatternEntry patternTable[] = {
+        {2, 0b110000},
+        {3, 0b111000},
+        {4, 0b111100},
+        {5, 0b111110},
+        {6, 0b111111},
+        {8, 0b001111},
+        {12, 0b000011},
+        {16, 0b110011}};
+
+    uint8_t mask = 0;
+
+    ledMode = STATIC_PATTERN;
+    lengthChangeStart = time_us_64();
+
+    for (const auto &entry : patternTable)
+    {
+        if (entry.length == length)
+        {
+            mask = entry.bitmask;
+            break;
+        }
+    }
+
+    for (int i = 0; i < 6; ++i)
+    {
+        if (mask & (1 << (5 - i)))
+        {
+            LedOn(i);
+        }
+        else
+        {
+            LedOff(i);
+        }
+    }
+}
+
+void MainApp::updateLedState()
+{
+
+    if (ledMode == DYNAMIC_PWM)
+    {
+
+        LedBrightness(0, turingDAC1.DAC_8() << 4);
+        LedBrightness(1, turingDAC2.DAC_8() << 4);
+        LedBrightness(2, turingPWM1.DAC_8() << 4);
+        LedBrightness(3, turingPWM2.DAC_8() << 4);
+        LedOn(4, pulseLed1_status);
+        LedOn(5, pulseLed2_status);
+    }
+    else if (ledMode == STATIC_PATTERN)
+    {
+
+        if (time_us_64() - lengthChangeStart > 1500000)
+        { // 1.5 seconds in µs
+            ledMode = DYNAMIC_PWM;
+        }
     }
 }

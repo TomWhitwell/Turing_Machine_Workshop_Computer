@@ -33,6 +33,11 @@ static void core1_entry()
     multicore_fifo_push_blocking(reinterpret_cast<uintptr_t>(gApp));
     // prinft("MainApp constructed, pushed pointer\n");
 
+    uint32_t seed1 = app.MemoryCardID();
+    uint32_t seed2 = app.MemoryCardID() * 2;
+
+    printf("seed1 %u seed2 %u\n", seed1, seed2);
+
     app.LoadSettings();
     // prinft("Settings loaded\n");
     app.EnableNormalisationProbe();
@@ -44,8 +49,6 @@ int main()
 
     stdio_usb_init(); // Initialize USB serial // Claims for Core 0
     sleep_ms(1000);
-
-    printf("Main firing on core %d\n", get_core_num());
 
     // extern uint8_t __flash_binary_end;
     // // prinft("Flash ends at: 0x%08x\n", (uint32_t)&__flash_binary_end);
