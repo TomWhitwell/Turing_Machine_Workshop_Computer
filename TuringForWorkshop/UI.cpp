@@ -82,23 +82,30 @@ uint8_t UI::QuantiseToStep(uint32_t knobVal, uint8_t steps, uint32_t range)
 
 void UI::TriggerPulse1()
 {
-    app->PulseOutput1(true);
-    app->PulseLed1(true);
-    outputPulseTicksRemaining1 = outputPulseLength;
-    ledPulseTicksRemaining1 = ledPulseLength;
-    ledPulseActive1 = true;
-    outputPulseActive1 = true;
+    bool active = app->PulseOutput1(true);
+
+    if (active)
+    {
+
+        app->PulseLed1(true);
+        outputPulseTicksRemaining1 = outputPulseLength;
+        ledPulseTicksRemaining1 = ledPulseLength;
+        ledPulseActive1 = true;
+        outputPulseActive1 = true;
+    }
     app->updateMainTuring();
 }
 
 void UI::TriggerPulse2()
 {
-    app->PulseOutput2(true);
-    app->PulseLed2(true);
+    bool active = app->PulseOutput2(true);
+
+    app->PulseLed2(active);
     outputPulseTicksRemaining2 = outputPulseLength;
     ledPulseTicksRemaining2 = ledPulseLength;
-    ledPulseActive2 = true;
+    ledPulseActive2 = true; // always prepare to end pulses no matter if they're turned on or not
     outputPulseActive2 = true;
+
     app->updateDivTuring();
 }
 

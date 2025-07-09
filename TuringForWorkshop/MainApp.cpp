@@ -122,24 +122,49 @@ void MainApp::Housekeeping()
 
 void MainApp::PulseLed1(bool status)
 {
-    // LedOn(4, status);
     pulseLed1_status = status;
 }
 
 void MainApp::PulseLed2(bool status)
 {
-    // LedOn(5, status);
+
     pulseLed2_status = status;
 }
 
-void MainApp::PulseOutput1(bool status)
+bool MainApp::PulseOutput1(bool requested)
 {
-    PulseOut1(status);
+    bool emit = false;
+    bool isTuringMode = settings->preset[ModeSwitch()].pulseMode1;
+
+    if (isTuringMode && requested)
+    {
+        emit = (turingPWM1.DAC_8() & 0x01);
+    }
+    else
+    {
+        emit = requested;
+    }
+
+    PulseOut1(emit);
+    return emit;
 }
 
-void MainApp::PulseOutput2(bool status)
+bool MainApp::PulseOutput2(bool requested)
 {
-    PulseOut2(status);
+    bool emit = false;
+    bool isTuringMode = settings->preset[ModeSwitch()].pulseMode2;
+
+    if (isTuringMode && requested)
+    {
+        emit = (turingPWM2.DAC_8() & 0x01);
+    }
+    else
+    {
+        emit = requested;
+    }
+
+    PulseOut2(emit);
+    return emit;
 }
 
 bool MainApp::PulseInConnected1()

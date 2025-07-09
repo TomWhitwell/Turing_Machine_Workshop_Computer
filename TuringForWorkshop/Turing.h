@@ -13,8 +13,8 @@ public:
     void Update(int pot, int maxRange);
     void updateLength(int newLen);
     int returnLength();
-    int DAC_16();
-    int DAC_8();
+    uint16_t DAC_16();
+    uint8_t DAC_8();
     void DAC_print8();
     void DAC_print16();
     void randomSeed(uint32_t seed);

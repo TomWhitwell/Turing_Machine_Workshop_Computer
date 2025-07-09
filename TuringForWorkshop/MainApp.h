@@ -17,8 +17,8 @@ public:
 
     void PulseLed1(bool status);
     void PulseLed2(bool status);
-    void PulseOutput1(bool status);
-    void PulseOutput2(bool status);
+    bool PulseOutput1(bool status);
+    bool PulseOutput2(bool status);
     bool PulseInConnected1();
     bool PulseInConnected2();
     bool tapReceived();

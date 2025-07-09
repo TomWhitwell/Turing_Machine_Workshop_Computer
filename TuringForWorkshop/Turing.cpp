@@ -28,13 +28,13 @@ void Turing::Update(int pot, int maxRange)
 }
 
 // returns the full current sequence value as 16 bit number 0 to 65535
-int Turing::DAC_16()
+uint16_t Turing::DAC_16()
 {
     return _sequence;
 }
 
 // returns the current sequence value as 8 bit number 0 to 255 = ignores the last 8 binary digits
-int Turing::DAC_8()
+uint8_t Turing::DAC_8()
 {
 
     //  return _sequence >> 8 ; // left hand 8 bits
