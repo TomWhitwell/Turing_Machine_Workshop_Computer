@@ -3,25 +3,7 @@
 #include <cstdio>
 #include "pico/time.h" // temporary for testing
 #include <inttypes.h>  // temporary for testing
-
-// Gamma-corrected brightness table for MIDI notes 0–127 (scaled to 0–4095)
-const uint16_t midiToBrightness[128] = {
-    0, 0, 0, 1, 2, 3, 5, 7,
-    9, 12, 15, 19, 23, 27, 32, 37,
-    43, 49, 56, 63, 70, 78, 87, 95,
-    105, 115, 125, 136, 147, 159, 171, 184,
-    197, 211, 225, 240, 256, 272, 288, 305,
-    322, 340, 359, 378, 398, 418, 438, 460,
-    482, 504, 527, 550, 574, 599, 624, 650,
-    676, 703, 730, 758, 787, 816, 846, 876,
-    907, 938, 970, 1003, 1036, 1070, 1104, 1139,
-    1175, 1211, 1248, 1285, 1323, 1362, 1401, 1441,
-    1481, 1522, 1564, 1606, 1649, 1693, 1737, 1782,
-    1827, 1873, 1920, 1967, 2015, 2063, 2112, 2162,
-    2212, 2264, 2315, 2367, 2420, 2474, 2528, 2583,
-    2639, 2695, 2751, 2809, 2867, 2926, 2985, 3045,
-    3106, 3167, 3229, 3292, 3355, 3419, 3484, 3549,
-    3615, 3681, 3749, 3817, 3885, 3954, 4024, 4095};
+#include "tusb.h"
 
 MainApp::MainApp()
 
@@ -118,6 +100,15 @@ void MainApp::Housekeeping()
     ui.SlowUI(); // call knob checking etc
 
     updateLedState();
+
+    // MIDI processing (Core 0 only)
+    static uint8_t packet[64];
+
+    while (tud_midi_available())
+    {
+        size_t len = tud_midi_stream_read(packet, sizeof(packet));
+        handleSysExMessage(packet, len);
+    }
 }
 
 void MainApp::PulseLed1(bool status)
@@ -388,5 +379,85 @@ void MainApp::updateLedState()
         { // 1.5 seconds in µs
             ledMode = DYNAMIC_PWM;
         }
+    }
+}
+
+// Encodes binary data into 7-bit-safe format (MIDI-safe)
+// Each input byte is split if it has MSB set
+size_t encode7bit(const uint8_t *input, uint8_t *output, size_t len)
+{
+    size_t outIndex = 0;
+    for (size_t i = 0; i < len; ++i)
+    {
+        uint8_t b = input[i];
+        output[outIndex++] = b & 0x7F;
+        if (b > 0x7F)
+            output[outIndex++] = (b >> 7) & 0x01; // Keep only the 8th bit as a flag
+    }
+    return outIndex;
+}
+
+void MainApp::sysexRespond()
+{
+    const uint8_t sysExStart = 0xF0;
+    const uint8_t sysExEnd = 0xF7;
+    const uint8_t manufacturerId = 0x7D; // Non-commercial use
+    const uint8_t deviceId = 0x01;
+    const uint8_t messageType = 0x02; // Config dump
+
+    const uint8_t *raw = reinterpret_cast<const uint8_t *>(settings);
+    const size_t rawLen = sizeof(Config::Data);
+
+    uint8_t msg[4 + rawLen + 1];
+    size_t i = 0;
+
+    msg[i++] = sysExStart;
+    msg[i++] = manufacturerId;
+    msg[i++] = deviceId;
+    msg[i++] = messageType;
+
+    memcpy(&msg[i], raw, rawLen);
+    i += rawLen;
+
+    msg[i++] = sysExEnd;
+
+    tud_midi_stream_write(0, msg, i);
+}
+
+void MainApp::handleSysExMessage(const uint8_t *data, size_t len)
+{
+    // Basic validation
+    if (len < 5 || data[0] != 0xF0 || data[len - 1] != 0xF7)
+        return;
+
+    const uint8_t manufacturerId = data[1];
+    const uint8_t deviceId = data[2];
+    const uint8_t command = data[3];
+
+    if (manufacturerId != 0x7D || deviceId != 0x01)
+        return;
+
+    const uint8_t *payload = &data[4];
+    const size_t payloadLen = len - 5; // exclude F0, 7D, 01, cmd, F7
+
+    switch (command)
+    {
+    case 0x01: // "Hello" → send config dump
+        sysexRespond();
+        break;
+
+    case 0x03: // Apply config
+        if (payloadLen == sizeof(Config::Data))
+        {
+            memcpy(settings, payload, sizeof(Config::Data));
+            cfg.save(); // save to flash
+        }
+        break;
+
+    // TODO: Add more cases here
+    // case 0x04: send firmware version
+    // case 0x05: apply partial settings
+    default:
+        break;
     }
 }

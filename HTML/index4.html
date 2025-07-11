@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Turing Machine Configuration</title>
+  <link href="https://fontlibrary.org/face/osp-din" rel="stylesheet" type="text/css" />
+  <style>
+    :root {
+      --gold: #d4af37;
+      --bg: #111;
+      --fg: #fff;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "OSP-DIN", sans-serif;
+      font-size: 1.1rem;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #content {
+      max-width: 1200px;
+      margin: auto;
+      padding: 2rem 1rem 4rem;
+    }
+
+    h1 {
+      font-size: 2.6rem;
+      font-weight: 700;
+      color: var(--gold);
+      text-align: center;
+      margin-bottom: 1.2rem;
+      letter-spacing: 0.05em;
+    }
+
+    #status {
+      font-size: 1.25rem;
+      text-align: center;
+      margin-bottom: 2rem;
+      color: var(--gold);
+    }
+
+    /* ---------- column layout ---------- */
+    .columns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2.4rem;
+    }
+
+    .column {
+      flex: 1 1 300px;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2.4rem;
+    }
+
+    .switch-title {
+      font-weight: 700;
+      font-size: 1.5rem;
+      margin-bottom: 0.8rem;
+      color: var(--gold);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      text-align: center;
+    }
+
+    /* ---------- sections & buttons ---------- */
+    .group-section {
+      background: #00000080;
+      padding: 1.6rem 1rem 2rem;
+      border: 2px solid var(--gold);
+      border-radius: 1rem;
+      box-shadow: 0 2px 6px #00000080;
+      transition: transform 0.2s;
+    }
+
+    .group-section:hover { transform: translateY(-4px); }
+
+    .group-label {
+      display: block;
+      font-weight: 700;
+      font-size: 1.3rem;
+      margin-bottom: 1rem;
+      color: var(--gold);
+      letter-spacing: 0.03em;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 1rem;
+      background: #000;
+      color: var(--fg);
+      border: 2px solid var(--gold);
+      padding: 0.55rem 1.1rem;
+      margin: 0.45rem 0.45rem 0.6rem 0;
+      border-radius: 2rem;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border 0.2s, transform 0.1s;
+    }
+    button:hover { background: #333; }
+    button:active { transform: scale(0.96); }
+    button.active {
+      background: var(--fg);
+      color: #000;
+      border: 3px solid var(--gold);
+      font-weight: 700;
+    }
+
+    /* ---------- messages ---------- */
+    #messages {
+      font-size: 1rem;
+      margin-top: 3rem;
+      padding: 1rem;
+      border: 2px dashed var(--gold);
+      background: #000;
+      color: #ccc;
+      text-align: center;
+      border-radius: 0.5rem;
+    }
+
+    @media (min-width: 768px) {
+      body { font-size: 1.2rem; }
+      button { font-size: 1.05rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="content">
+    <h1>Turing Machine Configuration</h1>
+    <p id="status">🕐 Waiting for device...</p>
+
+    <div id="config-columns" class="columns" style="display:none">
+      <div id="mid-col" class="column">
+        <div class="switch-title">Switch Middle</div>
+      </div>
+      <div id="up-col" class="column">
+        <div class="switch-title">Switch Up</div>
+      </div>
+    </div>
+
+    <div id="common-col" style="display:none; margin-top:2.4rem">
+      <div class="switch-title">Common Functions</div>
+    </div>
+
+    <div id="messages">Device Status: <span id="deviceStatus"></span></div>
+  </div>
+
+  <script>
+    /* ------------ CONFIG DESCRIPTION ------------- */
+    const configMap = [
+      // Up switch groups
+      [0,  'Scale',      ['Chrom', 'Major', 'Minor', 'Minor Pent', 'Dorian', 'Pelog', 'Wholetone']],
+      [1,  'Notes',      ['Scale', '1-3-5', '1-5', '1-3-5-6', '1-3-5-7']],
+      [2,  'Octave',     ['+1', '+2', '+3', '+4']],
+      [3,  'Pulse Len',  ['Blip', '25%', '50%', '75%', 'Full', '← → Short', '← → Long']],
+      [11, 'Pulse 1',    ['Clock', 'Pulse']],
+      [12, 'Pulse 2',    ['Clock', 'Pulse']],
+      [4,  'Loop Len',   ['-1', 'Same']],
+
+      // Mid switch groups
+      [5,  'Scale',      ['Chrom', 'Major', 'Minor', 'Minor Pent', 'Dorian', 'Pelog', 'Wholetone']],
+      [6,  'Notes',      ['Scale', '1-3-5', '1-5', '1-3-5-6', '1-3-5-7']],
+      [7,  'Octave',     ['+1', '+2', '+3', '+4']],
+      [8,  'Pulse Len',  ['Blip', '25%', '50%', '75%', 'Full', '← → Short', '← → Long']],
+      [13, 'Pulse 1',    ['Clock', 'Pulse']],
+      [14, 'Pulse 2',    ['Clock', 'Pulse']],
+      [9,  'Loop Len',   ['-1', 'Same']],
+
+      // Common
+      [10, 'CV Range',   ['±6V', '±3V', '+6V', '+3V']]
+    ];
+
+    /* ------------ GROUP CATEGORIES ------------- */
+    const upGroups    = [0,1,2,3,4,11,12];
+    const midGroups   = [5,6,7,8,9,13,14];
+    const commonGroups= [10];
+
+    /* ------------ PAYLOAD ↔ GROUP MAPPING ------------- */
+    const payloadIndexForGroup = {
+      10: 7,
+      0: 8,  1: 9,  2:10,  3:11,  4:12, 11:13, 12:14,
+      5:15, 6:16, 7:17,  8:18,  9:19, 13:20, 14:21
+    };
+    const groupForPayloadIndex = Object.fromEntries(
+      Object.entries(payloadIndexForGroup).map(([g,i])=>[i,Number(g)])
+    );
+
+    /* ------------ STATE ------------- */
+    let lastDump = new Uint8Array(24);
+    function createDefaultDump(){
+      const d=new Uint8Array(24);
+      d.set([0x46,0x4E,0x4F,0x43]); // "CONF"
+      d.set([0x45,0x06],4);         // bpm 1605
+      d[6]=5;                       // divide
+      return d;
+    }
+    lastDump=createDefaultDump();
+
+    /* ------------ UI BUILD ------------- */
+    function buildUI(){
+      const midCol=document.getElementById('mid-col');
+      const upCol=document.getElementById('up-col');
+      const commonCol=document.getElementById('common-col');
+
+      configMap.forEach(([group,label,options])=>{
+        const section=document.createElement('div');
+        section.className='group-section';
+        const title=document.createElement('span');
+        title.className='group-label';
+        title.textContent=label;
+        section.appendChild(title);
+        options.forEach((opt,idx)=>{
+          const btn=document.createElement('button');
+          btn.textContent=opt;
+          btn.dataset.group=group;
+          btn.dataset.value=idx;
+          section.appendChild(btn);
+        });
+        if(upGroups.includes(group)) upCol.appendChild(section);
+        else if(midGroups.includes(group)) midCol.appendChild(section);
+        else commonCol.appendChild(section);
+      });
+    }
+
+    function updateUI(group,val){
+      document.querySelectorAll(`button[data-group='${group}']`).forEach(b=>{
+        b.classList.toggle('active',Number(b.dataset.value)===val);
+      });
+    }
+
+    /* ------------ SysEx PARSE ------------- */
+    function parseConfig(data){
+      if(!(data[0]===0xF0&&data[1]===0x7D&&data[2]===0x01&&data[3]===0x02)) return;
+      lastDump=Uint8Array.from(data.slice(4,-1));
+      Object.entries(groupForPayloadIndex).forEach(([idx,g])=>{
+        if(idx<lastDump.length) updateUI(g,lastDump[idx]);
+      });
+    }
+
+    /* ------------ SEND CURRENT CONFIG ------------- */
+    function sendCurrentConfig(){
+      if(!window.midiOutput) return;
+      const msg=[0xF0,0x7D,0x01,0x03,...lastDump,0xF7];
+      window.midiOutput.send(msg);
+    }
+
+    /* ------------ EVENT HANDLERS ------------- */
+    document.addEventListener('click',e=>{
+      const t=e.target;
+      if(t.tagName==='BUTTON'&&t.dataset.group!==undefined){
+        const g=Number(t.dataset.group);
+        const v=Number(t.dataset.value);
+        updateUI(g,v);
+        const pIdx=payloadIndexForGroup[g];
+        if(pIdx!==undefined) lastDump[pIdx]=v;
+        sendCurrentConfig();
+      }
+    });
+
+    function onMIDIMessage(e){const d=[...e.data];if(d[0]===0xF0&&d[1]===0x7D&&d[2]===0x01) parseConfig(d);}
+
+    /* ------------ DEVICE DETECTION ------------- */
+    let midiAccess;
+    function refreshDeviceStatus(){
+      const inputs=[...midiAccess.inputs.values()];
+      const outputs=[...midiAccess.outputs.values()];
+      window.midiInput=inputs[0]||null;
+      window.midiOutput=outputs[0]||null;
+      const connected=!!(window.midiInput&&window.midiOutput);
+      const statusEl=document.getElementById('status');
+      const devEl=document

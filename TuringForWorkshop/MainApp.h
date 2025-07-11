@@ -82,4 +82,8 @@ private:
     LedMode ledMode = DYNAMIC_PWM;
     uint64_t lengthChangeStart = 0;
     void showLengthPattern(int length);
+
+    size_t encode7bit(const uint8_t *in, uint8_t *out, size_t len);
+    void sysexRespond();
+    void handleSysExMessage(const uint8_t *data, size_t len);
 };

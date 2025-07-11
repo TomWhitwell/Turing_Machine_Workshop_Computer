@@ -45,15 +45,45 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 # Give oscillator more time to start - workshop system won't start if this isn't included 
-target_compile_definitions(${PROJECT_NAME} PRIVATE PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64)
+target_compile_definitions(${PROJECT_NAME} PRIVATE 
+    PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64
+
+    PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=1000
+    CFG_TUSB_MCU=OPT_MCU_RP2040
+    CFG_TUSB_RHPORT0_MODE=OPT_MODE_DEVICE
+    CFG_TUD_ENABLED=1
+    CFG_TUD_MIDI=1  # <-- Enable MIDI device
+
+)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
 set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".elf") 
 
 
+target_sources(${PROJECT_NAME} PRIVATE
+    usb_descriptors.c
+)
+
+
 # Link against the libraries you’re using (as per ComputerCard dependencies)
 target_link_libraries(${PROJECT_NAME}
-pico_unique_id pico_stdlib hardware_dma hardware_i2c hardware_pwm hardware_adc hardware_spi hardware_flash hardware_sync pico_stdio_usb pico_platform pico_multicore  
+pico_unique_id 
+pico_stdlib 
+hardware_dma 
+hardware_i2c 
+hardware_pwm 
+hardware_adc 
+hardware_spi 
+hardware_flash 
+hardware_sync 
+pico_stdio_usb 
+pico_platform 
+pico_multicore  
+
+tinyusb_device
+tinyusb_board
+
+
 )
 
 pico_enable_stdio_usb(${PROJECT_NAME} 1)

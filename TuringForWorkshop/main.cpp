@@ -19,6 +19,7 @@
 #include "MainApp.h"
 #include "pico/stdlib.h"
 #include <cstdio>
+#include "tusb.h"
 
 /* Global handle published by Core 1 after MainApp is constructed */
 static MainApp *volatile gApp = nullptr;
@@ -48,6 +49,7 @@ int main()
 {
 
     stdio_usb_init(); // Initialize USB serial // Claims for Core 0
+    tusb_init();
     sleep_ms(1000);
 
     // extern uint8_t __flash_binary_end;
@@ -84,6 +86,7 @@ int main()
     while (true)
     {
         gApp->Housekeeping();
+        tud_task(); // Process USB MIDI on Core 0
 
         // ------------- pace the loop  ---------------
         sleep_until(next); // keeps 1-ms period
