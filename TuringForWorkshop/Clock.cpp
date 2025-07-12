@@ -8,41 +8,26 @@ void Clock::Tick()
     phase += phase_increment;     // increment phase
     rising_edge = (prev > phase); // detect wraparound for main clock
 
-    uint32_t prev_prod = (uint64_t)prev * subclockMultiplier;  // multiply old phase
-    uint32_t curr_prod = (uint64_t)phase * subclockMultiplier; // multiply new phase
+    // uint32_t prev_prod = (uint64_t)prev * subclockMultiplier;  // multiply old phase
+    // uint32_t curr_prod = (uint64_t)phase * subclockMultiplier; // multiply new phase
 
-    if (prev_prod > curr_prod) 
+    uint32_t prev_prod = prev << subclockShift;
+    uint32_t curr_prod = phase << subclockShift;
+
+    if (prev_prod > curr_prod)
         ++subclockCount;
 
     totalTicks++;
 
-    if (!isExternalClock1)
-    // Internal Clock
+    if (subclockCount >= subclockDividor) // subclockDividor is set by knob Y
     {
-        if (subclockCount >= subclockDividor) // subclockDividor is set by knob Y
-        {
-            rising_edge_mult = true; // This is the line that creates the output pulse
-            subclockCount = 0;
-            subclockSync = true;
-        }
-        else
-        {
-            rising_edge_mult = false;
-        }
+        rising_edge_mult = true; // This is the line that creates the output pulse
+        subclockCount = 0;
+        subclockSync = true;
     }
     else
     {
-        // External Clock
-        if (subclockCount >= subclockDividor) // subclockDividor is set by knob Y
-        {
-            rising_edge_mult = true; // This is the line that creates the output pulse
-            subclockCount = 0;
-            subclockSync = true;
-        }
-        else
-        {
-            rising_edge_mult = false;
-        }
+        rising_edge_mult = false;
     }
 
     if (subclockSync && rising_edge)

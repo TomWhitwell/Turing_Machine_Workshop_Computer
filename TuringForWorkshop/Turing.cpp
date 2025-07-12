@@ -46,7 +46,7 @@ void Turing::updateLength(int newLen)
     _length = newLen;
 }
 
-int Turing::returnLength()
+uint16_t Turing::returnLength()
 {
     return _length;
 }
@@ -72,7 +72,7 @@ uint32_t Turing::random(uint32_t max) // [0, max)
     return next() % max;
 }
 
-int Turing::MidiNote(int low_note, int high_note, int scale_type, int sieve_type)
+uint8_t Turing::MidiNote(int low_note, int high_note, int scale_type, int sieve_type)
 {
     const int MAX_NOTES = 128;
 

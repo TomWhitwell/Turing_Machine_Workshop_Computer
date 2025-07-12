@@ -49,6 +49,7 @@ public:
     void blink(uint core, uint32_t interval_ms); // TESTING blinks LED related to core at given freq
 
     void updateLedState();
+    void TEST_write_to_Pulse(int i, bool val);
 
 private:
     Clock clk;

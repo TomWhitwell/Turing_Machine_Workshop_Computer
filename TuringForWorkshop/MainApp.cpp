@@ -75,6 +75,7 @@ void __not_in_flash_func(MainApp::ProcessSample)()
     }
 
     clk.Tick();
+
     ui.Tick();
 
     // CVOut1((clk.GetPhase() >> 20) - 2048); // just for debugging, remove
@@ -145,7 +146,7 @@ bool MainApp::PulseOutput1(bool requested)
         emit = requested;
     }
 
-    PulseOut1(emit);
+    // PulseOut1(emit);
     return emit;
 }
 
@@ -163,7 +164,7 @@ bool MainApp::PulseOutput2(bool requested)
         emit = requested;
     }
 
-    PulseOut2(emit);
+    // PulseOut2(emit);
     return emit;
 }
 
@@ -256,12 +257,14 @@ void MainApp::lengthKnobChanged(uint8_t length)
 void MainApp::updateMainTuring()
 {
 
+    TEST_write_to_Pulse(0, true);
+
     // Update Turing Machines
     turingDAC1.Update(KnobVal(Main), maxRange);
     turingPWM1.Update(KnobVal(Main), maxRange);
     turingPulseLength1.Update(KnobVal(Main), maxRange);
 
-    AudioOut1(turingDAC1.DAC_8() << 4);
+    AudioOut1(turingDAC1.DAC_8() << 4); // TESTING
 
     bool p = ModeSwitch();
     int base_note = 48; // C3
@@ -269,13 +272,18 @@ void MainApp::updateMainTuring()
     int low_note = base_note;
     int high_note = base_note + range * 12 + 12; // covers (range + 1) octaves
 
+    TEST_write_to_Pulse(1, true);
+
     int midi_note = turingPWM1.MidiNote(
         low_note,
         high_note,
         settings->preset[p].scale,
         settings->preset[p].notes);
 
-    CVOut1MIDINote(midi_note);
+    TEST_write_to_Pulse(1, false);
+
+    CVOut1MIDINote(midi_note); // TESTING
+    TEST_write_to_Pulse(0, false);
 }
 
 void MainApp::updateDivTuring()
@@ -389,4 +397,9 @@ void MainApp::updateLedState()
             ledMode = DYNAMIC_PWM;
         }
     }
+}
+
+void MainApp::TEST_write_to_Pulse(int i, bool val)
+{
+    PulseOut(i, val);
 }

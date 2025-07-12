@@ -12,13 +12,13 @@ public:
     Turing(int length, uint32_t seed);
     void Update(int pot, int maxRange);
     void updateLength(int newLen);
-    int returnLength();
+    uint16_t returnLength();
     uint16_t DAC_16();
     uint8_t DAC_8();
     void DAC_print8();
     void DAC_print16();
     void randomSeed(uint32_t seed);
-    int MidiNote(int low_note, int high_note, int scale_type, int sieve_type);
+    uint8_t MidiNote(int low_note, int high_note, int scale_type, int sieve_type);
 
 private:
     uint16_t _sequence = 0; // randomise on initialisation

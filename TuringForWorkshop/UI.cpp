@@ -3,6 +3,7 @@
 #define COMPUTERCARD_NOIMPL
 #include "ComputerCard.h"
 #include "MainApp.h"
+#include <pico/time.h>
 
 void UI::init(MainApp *a, Clock *c)
 {
@@ -13,37 +14,65 @@ void UI::init(MainApp *a, Clock *c)
 void UI::Tick()
 {
 
-    if (app->PulseInConnected1())
-    {
+    // use simple round robin to call TriggerPulse1 and EndPulse1 in 50% of cycles,
+    // and TriggerPulse2 and EndPulse2 in 50% of cycles, in order to reduce the time to
+    // complete 48khz clocked events
+    // store requested actions in pending variables
 
-        // don't do anything here if external pulse
-    }
-    else
+    static bool toggle = false;
+    static bool trigger1Pending = false;
+    static bool trigger2Pending = false;
+
+    // First set up all the pending conditions
+
+    if (clk->IsRisingEdge() && !app->PulseInConnected1())
     {
-        // Internal clock: respond to ALL overflows (natural or from reset)
-        if (clk->IsRisingEdge())
-        {
-            TriggerPulse1();
-        }
+        trigger1Pending = true;
     }
 
     if (clk->IsRisingEdgeMult() && !app->PulseInConnected2())
     {
-        TriggerPulse2();
+        trigger2Pending = true;
     }
 
     if (clk->ExtPulseReceived1())
     {
-        TriggerPulse1();
+        trigger1Pending = true;
     }
 
     if (clk->ExtPulseReceived2())
     {
-        TriggerPulse2();
+        trigger2Pending = true;
     }
 
-    EndPulse1(); // Countdown pulse timer and check if Pulse1 should be stopped
-    EndPulse2();
+    // Then act on the relevant functions according to the toggle
+
+    if (toggle && trigger1Pending)
+    {
+
+        TriggerPulse1();
+
+        trigger1Pending = false;
+    }
+    if (!toggle && trigger2Pending)
+    {
+
+        TriggerPulse2();
+
+        trigger2Pending = false;
+    }
+
+    if (toggle)
+    {
+        EndPulse1(); // Countdown pulse timer and check if Pulse1 should be stopped
+    }
+
+    if (!toggle)
+    {
+        EndPulse2();
+    }
+    // Then flip the toggle
+    toggle = !toggle;
 }
 
 void UI::SlowUI()
@@ -82,6 +111,7 @@ uint8_t UI::QuantiseToStep(uint32_t knobVal, uint8_t steps, uint32_t range)
 
 void UI::TriggerPulse1()
 {
+
     bool active = app->PulseOutput1(true);
 
     if (active)
@@ -93,6 +123,7 @@ void UI::TriggerPulse1()
         ledPulseActive1 = true;
         outputPulseActive1 = true;
     }
+
     app->updateMainTuring();
 }
 
