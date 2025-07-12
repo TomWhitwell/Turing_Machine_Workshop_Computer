@@ -38,8 +38,8 @@ private:
     uint16_t GetBPM10FromPhaseIncrement();
 
     volatile uint32_t subclockDividor = 16;
-    // const uint16_t subclockDivisions[9] = {512, 256, 128, 64, 32, 16, 8, 4, 2};
-    const uint16_t subclockDivisions[9] = {1024, 512, 256, 128, 64, 32, 16, 8, 4};
+    const uint16_t subclockDivisions[9] = {512, 256, 128, 64, 32, 16, 8, 4, 2};
+    // const uint16_t subclockDivisions[9] = {1024, 512, 256, 128, 64, 32, 16, 8, 4};
     const uint16_t subclockMultiplier = 16; // fastest clock multiplication, from which all other clocks are derived
     const uint8_t subclockShift = 4;        // since 2⁴ = 16
 

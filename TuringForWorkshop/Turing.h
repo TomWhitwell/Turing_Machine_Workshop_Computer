@@ -18,7 +18,9 @@ public:
     void DAC_print8();
     void DAC_print16();
     void randomSeed(uint32_t seed);
-    uint8_t MidiNote(int low_note, int high_note, int scale_type, int sieve_type);
+    // uint8_t MidiNote(int low_note, int high_note, int scale_type, int sieve_type);
+    void UpdateNotePool(int root_note, int octave_range, int scale_type);
+    uint8_t MidiNote();
 
 private:
     uint16_t _sequence = 0; // randomise on initialisation
@@ -26,4 +28,8 @@ private:
     inline static uint32_t _seed = 1;
     uint32_t next();
     uint32_t random(uint32_t max);
+
+    static constexpr uint8_t MAX_NOTES = 128;
+    uint8_t note_pool[MAX_NOTES];
+    int note_pool_size = 0;
 };

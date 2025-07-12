@@ -4,25 +4,6 @@
 #include "pico/time.h" // temporary for testing
 #include <inttypes.h>  // temporary for testing
 
-// Gamma-corrected brightness table for MIDI notes 0–127 (scaled to 0–4095)
-const uint16_t midiToBrightness[128] = {
-    0, 0, 0, 1, 2, 3, 5, 7,
-    9, 12, 15, 19, 23, 27, 32, 37,
-    43, 49, 56, 63, 70, 78, 87, 95,
-    105, 115, 125, 136, 147, 159, 171, 184,
-    197, 211, 225, 240, 256, 272, 288, 305,
-    322, 340, 359, 378, 398, 418, 438, 460,
-    482, 504, 527, 550, 574, 599, 624, 650,
-    676, 703, 730, 758, 787, 816, 846, 876,
-    907, 938, 970, 1003, 1036, 1070, 1104, 1139,
-    1175, 1211, 1248, 1285, 1323, 1362, 1401, 1441,
-    1481, 1522, 1564, 1606, 1649, 1693, 1737, 1782,
-    1827, 1873, 1920, 1967, 2015, 2063, 2112, 2162,
-    2212, 2264, 2315, 2367, 2420, 2474, 2528, 2583,
-    2639, 2695, 2751, 2809, 2867, 2926, 2985, 3045,
-    3106, 3167, 3229, 3292, 3355, 3419, 3484, 3549,
-    3615, 3681, 3749, 3817, 3885, 3954, 4024, 4095};
-
 MainApp::MainApp()
 
     // Initialise the Turing machines with variations of the memory card ID, unique but not random
@@ -40,16 +21,25 @@ MainApp::MainApp()
 
 void MainApp::LoadSettings()
 {
-
     // Load or initialise config
     cfg.load(0); // 1 = force reset
     settings = &cfg.get();
     CurrentBPM10 = settings->bpm; // load bpm from settings file NB bpm always 10x i.e 1200 = 120.0 bpm.
     clk.setBPM10(CurrentBPM10);
+
+    // create note pools for PWM precision CV outputs
+    bool p = ModeSwitch();
+    int base_note = 48; // C3
+    int range = settings->preset[p].range;
+    int scale = settings->preset[p].scale;
+    turingPWM1.UpdateNotePool(base_note, range, scale);
+    turingPWM2.UpdateNotePool(base_note, range, scale);
 }
 
 void __not_in_flash_func(MainApp::ProcessSample)()
 {
+
+    // TEST_write_to_Pulse(0, true); // pulse to test on oscilloscope
 
     // Call tap before ui.tick and before clk.tick, so that reset triggered tap is tapped make it to ui.
     if (tapReceived())
@@ -82,6 +72,8 @@ void __not_in_flash_func(MainApp::ProcessSample)()
     // CVOut2((clk.TEST_subclock_phase >> 20) - 2048);
 
     // blink(1, 50); // show that Core 1 is alive
+
+    // TEST_write_to_Pulse(0, false); // oscilloscope test
 }
 
 void MainApp::Housekeeping()
@@ -146,7 +138,7 @@ bool MainApp::PulseOutput1(bool requested)
         emit = requested;
     }
 
-    // PulseOut1(emit);
+    PulseOut1(emit);
     return emit;
 }
 
@@ -164,7 +156,7 @@ bool MainApp::PulseOutput2(bool requested)
         emit = requested;
     }
 
-    // PulseOut2(emit);
+    PulseOut2(emit);
     return emit;
 }
 
@@ -257,33 +249,16 @@ void MainApp::lengthKnobChanged(uint8_t length)
 void MainApp::updateMainTuring()
 {
 
-    TEST_write_to_Pulse(0, true);
-
     // Update Turing Machines
     turingDAC1.Update(KnobVal(Main), maxRange);
     turingPWM1.Update(KnobVal(Main), maxRange);
     turingPulseLength1.Update(KnobVal(Main), maxRange);
 
-    AudioOut1(turingDAC1.DAC_8() << 4); // TESTING
+    AudioOut1(turingDAC1.DAC_8() << 4);
 
-    bool p = ModeSwitch();
-    int base_note = 48; // C3
-    int range = settings->preset[p].range;
-    int low_note = base_note;
-    int high_note = base_note + range * 12 + 12; // covers (range + 1) octaves
+    int midi_note = turingPWM1.MidiNote();
 
-    TEST_write_to_Pulse(1, true);
-
-    int midi_note = turingPWM1.MidiNote(
-        low_note,
-        high_note,
-        settings->preset[p].scale,
-        settings->preset[p].notes);
-
-    TEST_write_to_Pulse(1, false);
-
-    CVOut1MIDINote(midi_note); // TESTING
-    TEST_write_to_Pulse(0, false);
+    CVOut1MIDINote(midi_note);
 }
 
 void MainApp::updateDivTuring()
@@ -293,20 +268,7 @@ void MainApp::updateDivTuring()
     turingPulseLength2.Update(KnobVal(Main), maxRange);
 
     AudioOut2(turingDAC2.DAC_8() << 4);
-
-    bool p = ModeSwitch();
-    int base_note = 48; // C3
-    int range = settings->preset[p].range;
-    int low_note = base_note;
-    int high_note = base_note + range * 12 + 12; // covers (range + 1) octaves
-
-    int midi_note = turingPWM2.MidiNote(
-        low_note,
-        high_note,
-        settings->preset[p].scale,
-        settings->preset[p].notes);
-
-    CVOut2MIDINote(midi_note);
+    CVOut2MIDINote(turingPWM2.MidiNote());
 }
 
 uint32_t MainApp::MemoryCardID()
