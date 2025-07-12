@@ -50,6 +50,8 @@ public:
 
     void updateLedState();
     void TEST_write_to_Pulse(int i, bool val);
+    void UpdateNotePools();
+    bool switchChanged();
 
 private:
     Clock clk;
@@ -83,4 +85,6 @@ private:
     LedMode ledMode = DYNAMIC_PWM;
     uint64_t lengthChangeStart = 0;
     void showLengthPattern(int length);
+
+    bool oldSwitch = 0;
 };

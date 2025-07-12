@@ -101,6 +101,11 @@ void UI::SlowUI()
 
         lastLength = newlen;
     }
+
+    if (app->switchChanged())
+    {
+        app->UpdateNotePools();
+    }
 }
 
 uint8_t UI::QuantiseToStep(uint32_t knobVal, uint8_t steps, uint32_t range)

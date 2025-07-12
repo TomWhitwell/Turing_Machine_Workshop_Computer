@@ -19,6 +19,17 @@ MainApp::MainApp()
     ui.init(this, &clk);
 }
 
+void MainApp::UpdateNotePools()
+{
+    // create note pools for PWM precision CV outputs
+    bool p = ModeSwitch();
+    int base_note = 48; // C3
+    int range = settings->preset[p].range;
+    int scale = settings->preset[p].scale;
+    turingPWM1.UpdateNotePool(base_note, range, scale);
+    turingPWM2.UpdateNotePool(base_note, range, scale);
+}
+
 void MainApp::LoadSettings()
 {
     // Load or initialise config
@@ -27,13 +38,7 @@ void MainApp::LoadSettings()
     CurrentBPM10 = settings->bpm; // load bpm from settings file NB bpm always 10x i.e 1200 = 120.0 bpm.
     clk.setBPM10(CurrentBPM10);
 
-    // create note pools for PWM precision CV outputs
-    bool p = ModeSwitch();
-    int base_note = 48; // C3
-    int range = settings->preset[p].range;
-    int scale = settings->preset[p].scale;
-    turingPWM1.UpdateNotePool(base_note, range, scale);
-    turingPWM2.UpdateNotePool(base_note, range, scale);
+    UpdateNotePools();
 }
 
 void __not_in_flash_func(MainApp::ProcessSample)()
@@ -226,6 +231,19 @@ uint16_t MainApp::KnobY()
 bool MainApp::ModeSwitch()
 { // 1 = up 0 = middle (or down)
     return SwitchVal() == Up;
+}
+
+bool MainApp::switchChanged()
+{
+    // 1 = up 0 = middle (or down)
+    bool result = false;
+    bool newSwitch = ModeSwitch();
+    if (newSwitch != oldSwitch)
+    {
+        result = true;
+        oldSwitch = newSwitch;
+    }
+    return result;
 }
 
 void MainApp::divideKnobChanged(uint8_t step)
