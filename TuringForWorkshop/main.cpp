@@ -19,6 +19,7 @@
 #include "MainApp.h"
 #include "pico/stdlib.h"
 #include <cstdio>
+#include "tusb.h"
 
 /* Global handle published by Core 1 after MainApp is constructed */
 static MainApp *volatile gApp = nullptr;
@@ -49,41 +50,28 @@ int main()
 
     stdio_usb_init(); // Initialize USB serial // Claims for Core 0
     sleep_ms(10);
+    tusb_init();
 
-    // extern uint8_t __flash_binary_end;
-    // // prinft("Flash ends at: 0x%08x\n", (uint32_t)&__flash_binary_end);
-
-    /* 2 )  launch the audio engine on core 1 */
-    // prinft("About to launch Core 1 from core %d\n", get_core_num());
+    // launch the audio engine on core 1
     multicore_launch_core1(core1_entry);
-    // prinft("Core 1 launched from core %d\n", get_core_num());
 
-    /* 3 )  wait until Core 1 has published MainApp* (rarely more than 100 µs) */
-    // while (!gApp)
-    //     tight_loop_contents();
-
-    if (!multicore_fifo_rvalid())
-    {
-        // prinft("Core 0: FIFO is empty!\n");
-    }
-    else
-    {
-        // prinft("I guess fifo is ok? \n");
+    // wait until Core 1 has published MainApp* (rarely more than 100 µs)
+    while (multicore_fifo_rvalid())
+    { // do nothing
     }
 
     uintptr_t ptr = multicore_fifo_pop_blocking();
     gApp = reinterpret_cast<MainApp *>(ptr);
 
-    // prinft("MainApp successfully launched, watching from core %d\n", get_core_num());
-
     // Core 0 loads settings from flash
     gApp->LoadSettings();
-    // prinft("Loaded settings on core %d\n", get_core_num());
+
     absolute_time_t next = make_timeout_time_ms(1);
 
     while (true)
     {
         gApp->Housekeeping();
+        tud_task(); // Process USB MIDI on Core 0
 
         // ------------- pace the loop  ---------------
         sleep_until(next); // keeps 1-ms period

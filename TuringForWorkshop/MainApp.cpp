@@ -3,6 +3,7 @@
 #include <cstdio>
 #include "pico/time.h" // temporary for testing
 #include <inttypes.h>  // temporary for testing
+#include "tusb.h"
 
 MainApp::MainApp()
 
@@ -43,6 +44,14 @@ void MainApp::LoadSettings()
 
 void __not_in_flash_func(MainApp::ProcessSample)()
 {
+
+    static uint8_t packet[128];
+
+    while (tud_midi_available())
+    {
+        size_t len = tud_midi_stream_read(packet, sizeof(packet));
+        handleSysExMessage(packet, len);
+    }
 
     // TEST_write_to_Pulse(0, true); // pulse to test on oscilloscope
 
@@ -382,4 +391,69 @@ void MainApp::updateLedState()
 void MainApp::TEST_write_to_Pulse(int i, bool val)
 {
     PulseOut(i, val);
+}
+
+void MainApp::sysexRespond()
+{
+    const uint8_t sysExStart = 0xF0;
+    const uint8_t sysExEnd = 0xF7;
+    const uint8_t manufacturerId = 0x7D; // Non-commercial use
+    const uint8_t deviceId = 0x01;
+    const uint8_t messageType = 0x02; // Config dump
+
+    const uint8_t *raw = reinterpret_cast<const uint8_t *>(settings);
+    const size_t rawLen = sizeof(Config::Data);
+
+    uint8_t msg[4 + rawLen + 1];
+    size_t i = 0;
+
+    msg[i++] = sysExStart;
+    msg[i++] = manufacturerId;
+    msg[i++] = deviceId;
+    msg[i++] = messageType;
+
+    memcpy(&msg[i], raw, rawLen);
+    i += rawLen;
+
+    msg[i++] = sysExEnd;
+
+    tud_midi_stream_write(0, msg, i);
+}
+
+void MainApp::handleSysExMessage(const uint8_t *data, size_t len)
+{
+    // Basic validation
+    if (len < 5 || data[0] != 0xF0 || data[len - 1] != 0xF7)
+        return;
+
+    const uint8_t manufacturerId = data[1];
+    const uint8_t deviceId = data[2];
+    const uint8_t command = data[3];
+
+    if (manufacturerId != 0x7D || deviceId != 0x01)
+        return;
+
+    const uint8_t *payload = &data[4];
+    const size_t payloadLen = len - 5; // exclude F0, 7D, 01, cmd, F7
+
+    switch (command)
+    {
+    case 0x01: // "Hello" → send config dump
+        sysexRespond();
+        break;
+
+    case 0x03: // Apply config
+        if (payloadLen == sizeof(Config::Data))
+        {
+            // memcpy(settings, payload, sizeof(Config::Data));
+            // cfg.save(); // save to flash
+        }
+        break;
+
+    // TODO: Add more cases here
+    // case 0x04: send firmware version
+    // case 0x05: apply partial settings
+    default:
+        break;
+    }
 }

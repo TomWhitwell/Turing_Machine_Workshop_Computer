@@ -1,6 +1,6 @@
 #include "tusb.h"
 
-#define USB_PID 0x000A // Pi Pick CDC
+#define USB_PID 0x10C1 // Music Thing Workshop System
 #define USB_VID 0x2E8A // Raspberry Pi
 #define USB_BCD 0x0200
 

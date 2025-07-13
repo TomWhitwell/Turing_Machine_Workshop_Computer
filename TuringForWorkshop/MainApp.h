@@ -87,4 +87,7 @@ private:
     void showLengthPattern(int length);
 
     bool oldSwitch = 0;
+
+    void sysexRespond();
+    void handleSysExMessage(const uint8_t *data, size_t len);
 };

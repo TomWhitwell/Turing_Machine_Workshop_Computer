@@ -242,7 +242,7 @@ navigator.requestMIDIAccess({ sysex: true }).then(access => {
   midiAccess = access;
   midiAccess.onstatechange = refreshDeviceStatus;
   refreshDeviceStatus();
-  setInterval(refreshDeviceStatus, 1000);
+//   setInterval(refreshDeviceStatus, 1000);
 });
 </script>
 </body>
