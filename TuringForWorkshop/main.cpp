@@ -48,7 +48,7 @@ int main()
 {
 
     stdio_usb_init(); // Initialize USB serial // Claims for Core 0
-    sleep_ms(1000);
+    sleep_ms(10);
 
     // extern uint8_t __flash_binary_end;
     // // prinft("Flash ends at: 0x%08x\n", (uint32_t)&__flash_binary_end);
