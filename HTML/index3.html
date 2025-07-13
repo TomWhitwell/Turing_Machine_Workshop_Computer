@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Turing Machine Config</title>
+  <link href="https://fontlibrary.org/face/osp-din" rel="stylesheet" type="text/css" />
+  <style>
+    body {
+      font-family: "OSP-DIN", sans-serif;
+      font-size: 26px;
+      background-color: #111;
+      color: white;
+    }
+    #content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    button {
+      font-family: "OSP-DIN", sans-serif;
+      font-size: 28px;
+      background-color: black;
+      color: white;
+      border: 2px solid #d4af37;
+      padding: 12px 24px;
+      margin: 8px 12px 20px 0;
+      border-radius: 50px;
+      transition: background-color 0.2s, color 0.2s, border 0.2s;
+    }
+    button:hover {
+      background-color: #222;
+      color: #d4af37;
+    }
+    button.active {
+      background-color: white;
+      color: black;
+      border: 4px solid #d4af37;
+      font-weight: bold;
+    }
+    .group-label {
+      color: #d4af37;
+      font-size: 32px;
+      font-weight: bold;
+      margin: 2rem 0 1rem;
+    }
+    #messages {
+      font-size: 28px;
+      margin-top: 40px;
+      padding: 20px;
+      border: 2px dotted #d4af37;
+      background-color: #000;
+      color: #ccc;
+    }
+    #status {
+      font-size: 30px;
+      margin-bottom: 2rem;
+      color: #d4af37;
+    }
+    .preset-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 4rem;
+    }
+    .preset-block {
+      flex: 1;
+      padding: 1rem;
+      border-left: 4px solid #d4af37;
+    }
+    @media (min-width: 768px) {
+      .preset-grid {
+        flex-direction: row;
+      }
+    }
+  </style>
+</head>
+<body>
+<div id="content">
+  <h1 style="color: #d4af37; font-size: 40px;">Turing Machine Configuration</h1>
+  <p id="status">🕐 Waiting for device...</p>
+
+  <div id="config-ui" style="display:none" class="preset-grid">
+    <div class="preset-block">
+      <div class="group-label">Z Switch Up</div>
+      <div class="group-label">Scale:</div>
+      <button groupid="0" valueid="0">Chrom</button>
+      <button groupid="0" valueid="1">Major</button>
+      <button groupid="0" valueid="2">Minor</button>
+      <button groupid="0" valueid="3">Minor Pent</button>
+      <button groupid="0" valueid="4">Dorian</button>
+      <button groupid="0" valueid="5">Pelog</button>
+      <button groupid="0" valueid="6">Wholetone</button>
+
+      <div class="group-label">Notes:</div>
+      <button groupid="1" valueid="0">Scale</button>
+      <button groupid="1" valueid="1">1-3-5</button>
+      <button groupid="1" valueid="2">1-5</button>
+      <button groupid="1" valueid="3">1-3-5-6</button>
+      <button groupid="1" valueid="4">1-3-5-7</button>
+
+      <div class="group-label">Octave Range:</div>
+      <button groupid="2" valueid="0">+1</button>
+      <button groupid="2" valueid="1">+2</button>
+      <button groupid="2" valueid="2">+3</button>
+      <button groupid="2" valueid="3">+4</button>
+
+      <div class="group-label">Pulse 1 Mode:</div>
+      <button groupid="11" valueid="0">Clock</button>
+      <button groupid="11" valueid="1">Pulse</button>
+
+      <div class="group-label">Pulse 2 Mode:</div>
+      <button groupid="12" valueid="0">Clock</button>
+      <button groupid="12" valueid="1">Pulse</button>
+
+      <div class="group-label">Output 2 Loop Length:</div>
+      <button groupid="4" valueid="0">-1</button>
+      <button groupid="4" valueid="1">Same</button>
+    </div>
+
+    <div class="preset-block">
+      <div class="group-label">Z Switch Middle</div>
+      <div class="group-label">Scale:</div>
+      <button groupid="5" valueid="0">Chrom</button>
+      <button groupid="5" valueid="1">Major</button>
+      <button groupid="5" valueid="2">Minor</button>
+      <button groupid="5" valueid="3">Minor Pent</button>
+      <button groupid="5" valueid="4">Dorian</button>
+      <button groupid="5" valueid="5">Pelog</button>
+      <button groupid="5" valueid="6">Wholetone</button>
+
+      <div class="group-label">Notes:</div>
+      <button groupid="6" valueid="0">Scale</button>
+      <button groupid="6" valueid="1">1-3-5</button>
+      <button groupid="6" valueid="2">1-5</button>
+      <button groupid="6" valueid="3">1-3-5-6</button>
+      <button groupid="6" valueid="4">1-3-5-7</button>
+
+      <div class="group-label">Octave Range:</div>
+      <button groupid="7" valueid="0">+1</button>
+      <button groupid="7" valueid="1">+2</button>
+      <button groupid="7" valueid="2">+3</button>
+      <button groupid="7" valueid="3">+4</button>
+
+      <div class="group-label">Pulse 1 Mode:</div>
+      <button groupid="13" valueid="0">Clock</button>
+      <button groupid="13" valueid="1">Pulse</button>
+
+      <div class="group-label">Pulse 2 Mode:</div>
+      <button groupid="14" valueid="0">Clock</button>
+      <button groupid="14" valueid="1">Pulse</button>
+
+      <div class="group-label">Output 2 Loop Length:</div>
+      <button groupid="9" valueid="0">-1</button>
+      <button groupid="9" valueid="1">Same</button>
+    </div>
+  </div>
+
+  <div id="messages">
+    Device Status: <span id="deviceStatus"></span>
+  </div>
+</div>
+
+<script>
+let midiAccess = null;
+let midiInput = null;
+let midiOutput = null;
+
+function updateUI(group, value) {
+  document.querySelectorAll(`button[groupid='${group}']`).forEach(btn => {
+    btn.classList.remove('active');
+  });
+  const selected = document.querySelector(`button[groupid='${group}'][valueid='${value}']`);
+  if (selected) selected.classList.add('active');
+}
+
+function parseConfig(decoded) {
+  let i = 0;
+  i += 4;
+  i += 2;
+  i++;
+  const cvRange = decoded[i++];
+  const preset = [];
+  for (let p = 0; p < 2; p++) {
+    preset.push({
+      scale: decoded[i++],
+      notes: decoded[i++],
+      range: decoded[i++],
+      length: decoded[i++],
+      looplen: decoded[i++],
+      pulseMode1: decoded[i++],
+      pulseMode2: decoded[i++]
+    });
+  }
+  return { cvRange, preset };
+}
+
+function onMIDIMessage(event) {
+  const data = Array.from(event.data);
+  if (data[0] === 0xF0 && data[1] === 0x7D && data[2] === 0x01 && data[3] === 0x02) {
+    const payload = data.slice(4, -1);
+    const config = parseConfig(payload);
+
+    updateUI(0, config.preset[0].scale);
+    updateUI(1, config.preset[0].notes);
+    updateUI(2, config.preset[0].range);
+    updateUI(4, config.preset[0].looplen);
+    updateUI(11, config.preset[0].pulseMode1);
+    updateUI(12, config.preset[0].pulseMode2);
+
+    updateUI(5, config.preset[1].scale);
+    updateUI(6, config.preset[1].notes);
+    updateUI(7, config.preset[1].range);
+    updateUI(9, config.preset[1].looplen);
+    updateUI(13, config.preset[1].pulseMode1);
+    updateUI(14, config.preset[1].pulseMode2);
+
+    document.getElementById('config-ui').style.display = 'flex';
+    document.getElementById('status').textContent = '✅ Device Connected';
+    document.getElementById('deviceStatus').textContent = midiInput?.name || '';
+  }
+}
+
+function refreshDeviceStatus() {
+  const currentInputs = Array.from(midiAccess.inputs.values());
+  const currentOutputs = Array.from(midiAccess.outputs.values());
+  midiInput = currentInputs[0] || null;
+  midiOutput = currentOutputs[0] || null;
+
+  if (midiInput && midiOutput) {
+    midiInput.onmidimessage = onMIDIMessage;
+    document.getElementById('deviceStatus').textContent = midiInput.name;
+    document.getElementById('status').textContent = '✅ Device Connected';
+    midiOutput.send([0xF0, 0x7D, 0x01, 0x01, 0xF7]);
+  } else {
+    document.getElementById('status').textContent = '🕐 Waiting for device...';
+    document.getElementById('deviceStatus').textContent = '';
+    document.getElementById('config-ui').style.display = 'none';
+  }
+}
+
+navigator.requestMIDIAccess({ sysex: true }).then(access => {
+  midiAccess = access;
+  midiAccess.onstatechange = refreshDeviceStatus;
+  refreshDeviceStatus();
+  setInterval(refreshDeviceStatus, 1000);
+});
+</script>
+</body>
+</html>
