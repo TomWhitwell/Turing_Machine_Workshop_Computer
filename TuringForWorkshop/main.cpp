@@ -9,6 +9,12 @@
  *    - PICO_COPY_TO_RAM 1  (so flash stalls don’t hurt audio)
  ***********************************************************/
 
+// Config variables in HEX
+const int CARD_NUMBER = 0x03;
+const int MAJOR_VERSION = 0x01;
+const int MINOR_VERSION = 0x00;
+const int POINT_VERSION = 0x00;
+
 #include "pico/version.h"
 #pragma message("SDK = " PICO_SDK_VERSION_STRING)
 
@@ -49,9 +55,9 @@ int main()
 {
 
     stdio_usb_init(); // Initialize USB serial // Claims for Core 0
-    sleep_ms(10);
+    sleep_ms(100);
     tusb_init();
-
+    printf("hello world ");
     // launch the audio engine on core 1
     multicore_launch_core1(core1_entry);
 

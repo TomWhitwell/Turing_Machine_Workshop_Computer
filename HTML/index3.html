@@ -183,7 +183,6 @@ function parseConfig(decoded) {
   for (let p = 0; p < 2; p++) {
     preset.push({
       scale: decoded[i++],
-      notes: decoded[i++],
       range: decoded[i++],
       length: decoded[i++],
       looplen: decoded[i++],
@@ -194,21 +193,33 @@ function parseConfig(decoded) {
   return { cvRange, preset };
 }
 
+// Decode SysEx data that was packed 7-bit (1 MSB + 7 LSBs = 8 bytes)
+function decode7bit(payload) {
+  const output = [];
+  for (let i = 0; i < payload.length; i += 8) {
+    const msb = payload[i];
+    for (let j = 0; j < 7 && (i + j + 1) < payload.length; ++j) {
+      const byte = payload[i + j + 1];
+      output.push(byte | (((msb >> j) & 1) << 7));
+    }
+  }
+  return output;
+}
+
 function onMIDIMessage(event) {
   const data = Array.from(event.data);
   if (data[0] === 0xF0 && data[1] === 0x7D && data[2] === 0x01 && data[3] === 0x02) {
     const payload = data.slice(4, -1);
-    const config = parseConfig(payload);
+    const decoded = decode7bit(payload);
+    const config = parseConfig(decoded);
 
     updateUI(0, config.preset[0].scale);
-    updateUI(1, config.preset[0].notes);
     updateUI(2, config.preset[0].range);
     updateUI(4, config.preset[0].looplen);
     updateUI(11, config.preset[0].pulseMode1);
     updateUI(12, config.preset[0].pulseMode2);
 
     updateUI(5, config.preset[1].scale);
-    updateUI(6, config.preset[1].notes);
     updateUI(7, config.preset[1].range);
     updateUI(9, config.preset[1].looplen);
     updateUI(13, config.preset[1].pulseMode1);
@@ -242,7 +253,6 @@ navigator.requestMIDIAccess({ sysex: true }).then(access => {
   midiAccess = access;
   midiAccess.onstatechange = refreshDeviceStatus;
   refreshDeviceStatus();
-//   setInterval(refreshDeviceStatus, 1000);
 });
 </script>
 </body>

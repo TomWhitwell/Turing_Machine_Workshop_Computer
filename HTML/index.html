@@ -1,152 +1,290 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>RP2040 Config Viewer</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workshop System Config Editor</title>
+  <link href="https://fontlibrary.org/face/osp-din" rel="stylesheet" type="text/css">
   <style>
-    body { font-family: sans-serif; padding: 1rem; }
-    table { border-collapse: collapse; margin-top: 1rem; }
-    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
-    th { background: #f0f0f0; }
-    #log { margin-top: 1rem; white-space: pre; background: #eee; padding: 1rem; }
+    :root {
+      --bg: #000;
+      --text: #fff;
+      --accent: #d4af37;
+    }
+
+    body {
+      font-family: 'OSP-DIN', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 2rem;
+    }
+
+    h1 {
+      text-transform: uppercase;
+      font-weight: normal;
+      letter-spacing: 1px;
+      font-size: 2.5em;
+      margin-bottom: 2rem;
+    }
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: auto repeat(var(--preset-count, 2), 1fr);
+      gap: 2rem;
+    }
+
+    .grid-header,
+    .field-label {
+      text-transform: uppercase;
+      font-weight: bold;
+      font-size: 1.25em;
+    }
+
+    .field-label {
+      border-left: 4px solid var(--accent);
+      padding-left: 1rem;
+    }
+
+    .field-cell {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    button {
+      font-family: 'OSP-DIN', sans-serif;
+      font-size: 1.2em;
+      background-color: var(--bg);
+      color: var(--text);
+      border: 2px solid var(--accent);
+      padding: 0.7em 1.2em;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+    }
+
+    button:hover {
+      background-color: #111;
+    }
+
+    button.active {
+      background-color: var(--text);
+      color: var(--bg);
+      border-color: var(--text);
+    }
+
+    @media (max-width: 800px) {
+      .config-grid {
+        grid-template-columns: auto 1fr;
+      }
+      .config-grid .grid-header:nth-child(n+3),
+      .config-grid .field-cell:nth-child(3n+3) {
+        display: none;
+      }
+    }
   </style>
 </head>
 <body>
+  <h1>Workshop System Config Editor</h1>
+  <div id="config" class="config-grid"></div>
+  <script>
+    const presets = [
+      { name: "Scale", key: "scale", labels: ["Chrom", "Major", "Minor", "Minor Pent", "Dorian", "Pelog", "Wholetone"], repeat: 2 },
+      { name: "Notes", key: "notes", labels: ["This", "was", "an", "old", "idea", "i", "dropped "], repeat: 2 },
+      { name: "Range", key: "range", labels: ["1", "2", "3", "4"], repeat: 2 },
+      { name: "Note Length", key: "notelen", labels: ["Blip", "25%", "50%", "75%", "Full", "← → Short", "← → Long"], repeat: 2 },
+      { name: "Loop Length", key: "looplen", labels: ["2", "4", "8", "16"], repeat: 2 },
+      { name: "Pulse 1 Mode", key: "pulseMode1", labels: ["Off", "On"], repeat: 2 },
+      { name: "Pulse 2 Mode", key: "pulseMode2", labels: ["Off", "On"], repeat: 2 },
+    ];
 
-<h1>RP2040 SysEx Config Viewer</h1>
-<div id="status">🔌 Connect your device via USB MIDI...</div>
+    const currentValues = {};
+    let midiOutput = null;
 
-<table id="config-table" style="display:none;">
-  <thead>
-    <tr><th>Field</th><th>Value</th></tr>
-  </thead>
-  <tbody></tbody>
-</table>
+    async function initMIDI() {
+      const access = await navigator.requestMIDIAccess({ sysex: true });
+      access.inputs.forEach(input => {
+        input.onmidimessage = handleMIDIMessage;
+      });
+      midiOutput = [...access.outputs.values()][0];
+      sendConfigRequest();
+    }
 
-<pre id="log">Log will appear here...</pre>
+    function sendConfigRequest() {
+      if (!midiOutput) return;
+      const msg = [0xF0, 0x7D, 0x01, 0x01, 0xF7];
+      console.log("Sending config request:", hexArray(msg));
+      midiOutput.send(msg);
+    }
 
-<script>
-let midiInput = null;
-let midiOutput = null;
+    function hexArray(arr) {
+      return arr.map(x => x.toString(16).padStart(2, "0")).join(" ");
+    }
 
-const log = msg => {
-  const el = document.getElementById('log');
-  el.textContent += msg + '\n';
-};
+    function decode7BitSysex(data) {
+      const result = [];
+      for (let i = 0; i < data.length;) {
+        const msb = data[i++];
+        for (let j = 0; j < 7 && i < data.length; j++) {
+          let b = data[i++];
+          if (msb & (1 << j)) b |= 0x80;
+          result.push(b);
+        }
+      }
+      return result;
+    }
 
-function decode7bit(payload) {
-  const result = [];
-  for (let i = 0; i < payload.length; i += 2) {
-    result.push((payload[i] & 0x7F) | (payload[i + 1] << 7));
+
+  function encode7BitSysex(data) {
+  const encoded = [];
+  for (let i = 0; i < data.length; i += 7) {
+    let msb = 0;
+    const block = [];
+
+    for (let j = 0; j < 7; j++) {
+      let byte = data[i + j] || 0;
+      if (byte & 0x80) msb |= (1 << j);
+      block.push(byte & 0x7F);
+    }
+
+    encoded.push(msb, ...block);
   }
-  return result;
-}
+  return encoded;
+  }
 
-function parseConfig(decoded) {
-  let i = 0;
-  const magic = decoded[i++] |
-               (decoded[i++] << 8) |
-               (decoded[i++] << 16) |
-               (decoded[i++] << 24);
-  const bpm = decoded[i++] | (decoded[i++] << 8);
-  const divide = decoded[i++];
-  const cvRange = decoded[i++];
+  function getConfigBytes() {
+  const CONFIG_SIZE = 22; // must match sizeof(Config::Data)
+  const buf = new Uint8Array(CONFIG_SIZE);
 
-  const preset = [];
+  const view = new DataView(buf.buffer);
+
+  view.setUint32(0, 0x434F4E46, true); // MAGIC
+  view.setUint16(4, 1605, true);       // bpm
+  buf[6] = 5;                           // divide
+  buf[7] = 0;                           // cvRange
+
+  let i = 8;
   for (let p = 0; p < 2; p++) {
-    preset.push({
-      scale: decoded[i++],
-      notes: decoded[i++],
-      range: decoded[i++],
-      length: decoded[i++],
-      looplen: decoded[i++],
-      pulseMode1: decoded[i++],
-      pulseMode2: decoded[i++]
-    });
-  }
-
-  return { magic, bpm, divide, cvRange, preset };
-}
-
-function renderConfig(config) {
-  const table = document.getElementById('config-table');
-  const tbody = table.querySelector('tbody');
-  tbody.innerHTML = ''; // clear previous
-
-  const addRow = (label, value) => {
-    const row = document.createElement('tr');
-    row.innerHTML = `<td>${label}</td><td>${value}</td>`;
-    tbody.appendChild(row);
-  };
-
-  addRow("Magic", `0x${config.magic.toString(16)}`);
-  addRow("BPM", config.bpm);
-  addRow("Divide", config.divide);
-  addRow("CV Range", config.cvRange);
-
-  config.preset.forEach((p, idx) => {
-    addRow(`Preset ${idx} - Scale`, p.scale);
-    addRow(`Preset ${idx} - Notes`, p.notes);
-    addRow(`Preset ${idx} - Range`, p.range);
-    addRow(`Preset ${idx} - Length`, p.length);
-    addRow(`Preset ${idx} - Loop Length`, p.looplen);
-    addRow(`Preset ${idx} - Pulse Mode 1`, p.pulseMode1);
-    addRow(`Preset ${idx} - Pulse Mode 2`, p.pulseMode2);
-  });
-
-  table.style.display = 'table';
-}
-
-function onMIDIMessage(event) {
-  const data = Array.from(event.data);
-  if (data[0] === 0xF0 && data[1] === 0x7D && data[2] === 0x01 && data[3] === 0x02) {
-    const payload = data.slice(4, -1); // Exclude start and end bytes
-    const decoded = payload;
-    const config = parseConfig(decoded);
-    log("📥 Received SysEx Config Dump:");
-    log(JSON.stringify(config, null, 2));
-    renderConfig(config);
-    document.getElementById('status').textContent = "✅ Device connected and config received";
-  } else {
-    log("📥 MIDI: " + data.join(", "));
-  }
-}
-
-function tryToConnect(midiAccess) {
-  for (const entry of midiAccess.outputs.values()) {
-    if (!midiOutput && entry.name.includes("Computer")) {
-      midiOutput = entry;
-    }
-  }
-  for (const entry of midiAccess.inputs.values()) {
-    if (!midiInput && entry.name.includes("Computer")) {
-      midiInput = entry;
+    for (const setting of presets) {
+      if (p < setting.repeat) {
+        const field = `preset${p}.${setting.key}`;
+        buf[i++] = currentValues[field] || 0;
+      }
     }
   }
 
-  if (midiInput && midiOutput) {
-    midiInput.onmidimessage = onMIDIMessage;
-    document.getElementById('status').textContent = `🔍 Found ${midiInput.name}, requesting config...`;
-
-    const hello = new Uint8Array([0xF0, 0x7D, 0x01, 0x01, 0xF7]);
-    midiOutput.send(hello);
-    log("📤 Sent SysEx: Hello");
-  } else {
-    log("🕐 Still waiting for device...");
+  return buf;
   }
-}
 
-navigator.requestMIDIAccess({ sysex: true }).then(midiAccess => {
-  tryToConnect(midiAccess);
+  function sendFullConfig() {
+  if (!midiOutput) return;
 
-  midiAccess.onstatechange = e => {
-    log(`⚡ MIDI state changed: ${e.port.name} ${e.port.state}`);
-    tryToConnect(midiAccess);
-  };
-}).catch(err => {
-  log("❌ MIDI Access Error: " + err.message);
-});
-</script>
+  const raw = getConfigBytes();
+  const payload = encode7BitSysex(raw);
+  const msg = [0xF0, 0x7D, 0x01, 0x03, ...payload, 0xF7];
+const msgRaw = [0xF0, 0x7D, 0x01, 0x03, ...raw, 0xF7];
+  console.log("Raw config before encoding:", hexArray(msgRaw));
+  console.log("Sending full config:", hexArray(msg));
+  midiOutput.send(msg);
+  }
 
+
+    function handleMIDIMessage(e) {
+      const d = [...e.data];
+      if (d[0] !== 0xF0 || d[1] !== 0x7D || d[2] !== 0x01 || d[d.length - 1] !== 0xF7) {
+        console.warn("Ignored non-matching SysEx:", hexArray(d));
+        return;
+      }
+
+      const command = d[3];
+      const payload = d.slice(4, d.length - 1);
+
+      console.log(`Incoming SysEx Command 0x${command.toString(16)}:`, hexArray(d));
+
+      if (command === 0x02) {
+        const decoded = decode7BitSysex(payload);
+        console.log("Decoded config:", hexArray(decoded));
+        applyConfig(decoded);
+      }
+    }
+
+  function applyConfig(data) {
+  const offset = 8; // Skip magic (4), bpm (2), divide (1), cvRange (1)
+  let i = offset;
+
+  const maxPresets = Math.max(...presets.map(p => p.repeat || 1));
+
+  for (let p = 0; p < maxPresets; p++) {
+    for (const setting of presets) {
+      if (p < setting.repeat) {
+        const field = `preset${p}.${setting.key}`;
+        currentValues[field] = data[i++];
+      }
+    }
+  }
+
+  updateUI();
+  }
+
+
+  function sendUpdate(field, value) {
+  currentValues[field] = value;
+  updateUI();
+  sendFullConfig(); // Automatically send full config on any change
+  }
+
+
+    function updateUI() {
+      document.querySelectorAll("button").forEach(btn => {
+        const field = btn.dataset.field;
+        const value = parseInt(btn.dataset.value);
+        btn.classList.toggle("active", currentValues[field] === value);
+      });
+    }
+
+    function buildConfigUI() {
+      const container = document.getElementById("config");
+      const maxPresets = Math.max(...presets.map(p => p.repeat || 1));
+      document.documentElement.style.setProperty("--preset-count", maxPresets);
+
+      container.appendChild(document.createElement("div")); // top-left corner
+      for (let i = 0; i < maxPresets; i++) {
+        const header = document.createElement("div");
+        header.className = "grid-header";
+        header.textContent = i === 0 ? "Switch Mid" : "Switch Up";
+        container.appendChild(header);
+      }
+
+      presets.forEach(setting => {
+        const label = document.createElement("div");
+        label.className = "field-label";
+        label.textContent = setting.name;
+        container.appendChild(label);
+
+        for (let i = 0; i < maxPresets; i++) {
+          const cell = document.createElement("div");
+          cell.className = "field-cell";
+
+          if (i < setting.repeat) {
+            const fieldName = `preset${i}.${setting.key}`;
+            setting.labels.forEach((labelText, valueIndex) => {
+              const btn = document.createElement("button");
+              btn.innerText = labelText;
+              btn.dataset.field = fieldName;
+              btn.dataset.value = valueIndex;
+              btn.onclick = () => sendUpdate(fieldName, valueIndex);
+              cell.appendChild(btn);
+            });
+          }
+
+          container.appendChild(cell);
+        }
+      });
+    }
+
+    buildConfigUI();
+    initMIDI();
+  </script>
 </body>
 </html>

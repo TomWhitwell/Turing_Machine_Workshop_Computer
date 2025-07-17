@@ -45,14 +45,6 @@ void MainApp::LoadSettings()
 void __not_in_flash_func(MainApp::ProcessSample)()
 {
 
-    static uint8_t packet[128];
-
-    while (tud_midi_available())
-    {
-        size_t len = tud_midi_stream_read(packet, sizeof(packet));
-        handleSysExMessage(packet, len);
-    }
-
     // TEST_write_to_Pulse(0, true); // pulse to test on oscilloscope
 
     // Call tap before ui.tick and before clk.tick, so that reset triggered tap is tapped make it to ui.
@@ -92,6 +84,14 @@ void __not_in_flash_func(MainApp::ProcessSample)()
 
 void MainApp::Housekeeping()
 {
+
+    static uint8_t packet[128];
+
+    while (tud_midi_available())
+    {
+        size_t len = tud_midi_stream_read(packet, sizeof(packet));
+        handleSysExMessage(packet, len);
+    }
 
     // LedOn(2, pendingSave);
     uint64_t nowUs = time_us_64();
@@ -393,66 +393,185 @@ void MainApp::TEST_write_to_Pulse(int i, bool val)
     PulseOut(i, val);
 }
 
+// void MainApp::sysexRespond()
+// {
+//     const uint8_t sysExStart = 0xF0;
+//     const uint8_t sysExEnd = 0xF7;
+//     const uint8_t manufacturerId = 0x7D; // Non-commercial
+//     const uint8_t deviceId = 0x01;
+//     const uint8_t messageType = 0x02;
+
+//     const uint8_t *raw = reinterpret_cast<const uint8_t *>(settings);
+//     const size_t rawLen = sizeof(Config::Data);
+
+//     // Output buffer: worst case 8/7 expansion + 4 header + 1 footer
+//     const size_t maxEncodedLen = 4 + (rawLen / 7 + 1) * 8 + 1;
+//     uint8_t msg[maxEncodedLen];
+//     size_t out = 0;
+
+//     msg[out++] = sysExStart;
+//     msg[out++] = manufacturerId;
+//     msg[out++] = deviceId;
+//     msg[out++] = messageType;
+
+//     // 7-bit encode the config data
+//     for (size_t i = 0; i < rawLen; i += 7)
+//     {
+//         uint8_t msb = 0;
+//         uint8_t block[7] = {0};
+
+//         for (size_t j = 0; j < 7 && (i + j) < rawLen; ++j)
+//         {
+//             uint8_t b = raw[i + j];
+//             if (b & 0x80)
+//                 msb |= (1 << j);
+//             block[j] = b & 0x7F;
+//         }
+
+//         msg[out++] = msb;
+//         for (size_t j = 0; j < 7 && (i + j) < rawLen; ++j)
+//         {
+//             msg[out++] = block[j];
+//         }
+//     }
+
+//     msg[out++] = sysExEnd;
+
+//     tud_midi_stream_write(0, msg, out);
+// }
+
+// void MainApp::handleSysExMessage(const uint8_t *data, size_t len)
+// {
+//     // Basic validation
+//     if (len < 5 || data[0] != 0xF0 || data[len - 1] != 0xF7)
+//         return;
+
+//     const uint8_t manufacturerId = data[1];
+//     const uint8_t deviceId = data[2];
+//     const uint8_t command = data[3];
+
+//     if (manufacturerId != 0x7D || deviceId != 0x01)
+//         return;
+
+//     const uint8_t *payload = &data[4];
+//     const size_t payloadLen = len - 5; // exclude F0, 7D, 01, cmd, F7
+
+//     switch (command)
+//     {
+//     case 0x01: // "Hello" → send config dump
+//         sysexRespond();
+//         break;
+
+//     case 0x03: // Apply config
+//         if (payloadLen == sizeof(Config::Data))
+//         {
+//             // memcpy(settings, payload, sizeof(Config::Data));
+//             // cfg.save(); // save to flash
+//         }
+//         break;
+
+//     // TODO: Add more cases here
+//     // case 0x04: send firmware version
+//     // case 0x05: apply partial settings
+//     default:
+//         break;
+//     }
+// }
+
 void MainApp::sysexRespond()
 {
     const uint8_t sysExStart = 0xF0;
     const uint8_t sysExEnd = 0xF7;
-    const uint8_t manufacturerId = 0x7D; // Non-commercial use
+    const uint8_t manufacturerId = 0x7D;
     const uint8_t deviceId = 0x01;
-    const uint8_t messageType = 0x02; // Config dump
+    const uint8_t messageType = 0x02;
 
     const uint8_t *raw = reinterpret_cast<const uint8_t *>(settings);
     const size_t rawLen = sizeof(Config::Data);
 
-    uint8_t msg[4 + rawLen + 1];
-    size_t i = 0;
+    const size_t maxLen = 4 + ((rawLen + 6) / 7) * 8 + 1;
+    uint8_t msg[maxLen];
+    size_t out = 0;
 
-    msg[i++] = sysExStart;
-    msg[i++] = manufacturerId;
-    msg[i++] = deviceId;
-    msg[i++] = messageType;
+    msg[out++] = sysExStart;
+    msg[out++] = manufacturerId;
+    msg[out++] = deviceId;
+    msg[out++] = messageType;
 
-    memcpy(&msg[i], raw, rawLen);
-    i += rawLen;
+    // Encode in 7-byte chunks with MSB prefix
+    for (size_t i = 0; i < rawLen; i += 7)
+    {
+        uint8_t msb = 0;
+        uint8_t block[7] = {0};
 
-    msg[i++] = sysExEnd;
+        for (size_t j = 0; j < 7; ++j)
+        {
+            size_t index = i + j;
+            if (index >= rawLen)
+                break;
 
-    tud_midi_stream_write(0, msg, i);
+            uint8_t byte = raw[index];
+            if (byte & 0x80)
+                msb |= (1 << j);
+
+            block[j] = byte & 0x7F;
+        }
+
+        msg[out++] = msb;
+        for (size_t j = 0; j < 7 && (i + j) < rawLen; ++j)
+            msg[out++] = block[j];
+    }
+
+    msg[out++] = sysExEnd;
+    tud_midi_stream_write(0, msg, out);
 }
 
 void MainApp::handleSysExMessage(const uint8_t *data, size_t len)
 {
-    // Basic validation
     if (len < 5 || data[0] != 0xF0 || data[len - 1] != 0xF7)
         return;
 
     const uint8_t manufacturerId = data[1];
     const uint8_t deviceId = data[2];
     const uint8_t command = data[3];
+    const uint8_t *payload = &data[4];
+    const size_t payloadLen = len - 5;
 
     if (manufacturerId != 0x7D || deviceId != 0x01)
         return;
 
-    const uint8_t *payload = &data[4];
-    const size_t payloadLen = len - 5; // exclude F0, 7D, 01, cmd, F7
-
     switch (command)
     {
-    case 0x01: // "Hello" → send config dump
+    case 0x01:
         sysexRespond();
+        printf("sysex respond");
         break;
 
-    case 0x03: // Apply config
-        if (payloadLen == sizeof(Config::Data))
+    case 0x03:
+    {
+        uint8_t decoded[sizeof(Config::Data)] = {0};
+        size_t in = 0, out = 0;
+
+        while (in < payloadLen && out < sizeof(decoded))
         {
-            // memcpy(settings, payload, sizeof(Config::Data));
-            // cfg.save(); // save to flash
+            uint8_t msb = payload[in++];
+            for (int j = 0; j < 7 && in < payloadLen && out < sizeof(decoded); ++j)
+            {
+                uint8_t b = payload[in++];
+                if (msb & (1 << j))
+                    b |= 0x80;
+                decoded[out++] = b;
+            }
+        }
+
+        if (out == sizeof(Config::Data))
+        {
+            memcpy(settings, decoded, sizeof(Config::Data));
+            cfg.save();
         }
         break;
+    }
 
-    // TODO: Add more cases here
-    // case 0x04: send firmware version
-    // case 0x05: apply partial settings
     default:
         break;
     }

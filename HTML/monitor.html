@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MIDI Monitor (Hex Viewer)</title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #111;
+      color: #0f0;
+      padding: 1em;
+    }
+    #log {
+      white-space: pre;
+      overflow-y: auto;
+      max-height: 90vh;
+      border-top: 1px solid #444;
+      margin-top: 1em;
+    }
+  </style>
+</head>
+<body>
+  <h1>MIDI Monitor (Hex)</h1>
+  <p>Listening for MIDI input...</p>
+  <div id="log"></div>
+
+  <script>
+    const log = document.getElementById('log');
+
+
+function decode7bit(payload) {
+  const output = [];
+  for (let i = 0; i < payload.length; i += 8) {
+    const msb = payload[i];
+    for (let j = 0; j < 7 && (i + j + 1) < payload.length; ++j) {
+      const byte = payload[i + j + 1];
+      const fullByte = byte | (((msb >> j) & 0x01) << 7);
+      output.push(fullByte);
+    }
+  }
+  return output;
+}
+
+
+    function toHex(byteArray) {
+      return byteArray.map(b => b.toString(16).padStart(2, '0')).join(' ');
+    }
+
+    function logMessage(data) {
+      const hex = toHex(Array.from(data));
+      const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+      log.textContent += `[${timestamp}] ${hex}\n`;
+      log.scrollTop = log.scrollHeight;
+    }
+
+    if (navigator.requestMIDIAccess) {
+      navigator.requestMIDIAccess().then(midiAccess => {
+        for (let input of midiAccess.inputs.values()) {
+          input.onmidimessage = e => logMessage(e.data);
+        }
+
+        midiAccess.onstatechange = e => {
+          const port = e.port;
+          if (port.type === 'input' && port.state === 'connected') {
+            port.onmidimessage = e => logMessage(e.data);
+          }
+        };
+      }, err => {
+        log.textContent += 'MIDI Access error: ' + err + '\n';
+      });
+    } else {
+      log.textContent = 'Web MIDI API not supported in this browser.';
+    }
+  </script>
+</body>
+</html>
