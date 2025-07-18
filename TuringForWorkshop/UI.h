@@ -10,6 +10,9 @@ public:
     void Tick();
     void init(MainApp *app, Clock *clock);
     void SlowUI();
+    void SetPulseLength(uint8_t lenPercent);
+    void SetPulseMod(uint8_t lenPercent);
+    void UpdatePulseMod(uint8_t turing1, uint8_t turing2);
 
 private:
     int threshold = 48; // how many ticks before calling slow UI = 1ms
@@ -21,6 +24,7 @@ private:
     bool pulse2Status = false;
     int ledPulseLength = 480;   // number of ticks at 48khz = 10ms
     int outputPulseLength = 96; // 8ms = just for testing should be more like 2ms
+    int outputDivideLength = 96;
     int ledPulseTicksRemaining1 = 0;
     int ledPulseTicksRemaining2 = 0;
     int outputPulseTicksRemaining1 = 0;
@@ -33,6 +37,9 @@ private:
     void EndPulse1();
     void TriggerPulse2();
     void EndPulse2();
+    uint8_t pulseModLevel = 0;
+    int outputPulseMod1 = 0; // NB must be signed
+    int outputPulseMod2 = 0;
 
     uint8_t lastDivideStep = 0;
     uint8_t numDivideSteps = 9;

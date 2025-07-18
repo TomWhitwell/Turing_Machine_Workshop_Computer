@@ -216,3 +216,23 @@ uint16_t Clock::getBPM10()
 {
     return GetBPM10FromPhaseIncrement();
 }
+
+uint32_t Clock::GetTicksPerBeat()
+{
+    if (phase_increment == 0)
+        return 0;
+
+    return (uint64_t(1) << 32) / phase_increment;
+}
+
+uint32_t Clock::GetTicksPerSubclockBeat()
+{
+    if (phase_increment == 0)
+        return 0;
+
+    // One full beat in ticks
+    uint32_t ticks_per_beat = (uint64_t(1) << 32) / phase_increment;
+
+    // Multiply by the subclockDividor to get the divided/multiplied beat length
+    return (ticks_per_beat / 16) * subclockDividor;
+}

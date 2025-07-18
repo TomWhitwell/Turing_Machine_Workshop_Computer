@@ -105,6 +105,7 @@ void UI::SlowUI()
     if (app->switchChanged())
     {
         app->UpdateNotePools();
+        app->UpdatePulseLengths();
     }
 }
 
@@ -137,7 +138,7 @@ void UI::TriggerPulse2()
     bool active = app->PulseOutput2(true);
 
     app->PulseLed2(active);
-    outputPulseTicksRemaining2 = outputPulseLength;
+    outputPulseTicksRemaining2 = outputDivideLength;
     ledPulseTicksRemaining2 = ledPulseLength;
     ledPulseActive2 = true; // always prepare to end pulses no matter if they're turned on or not
     outputPulseActive2 = true;
@@ -174,4 +175,50 @@ void UI::EndPulse2()
         ledPulseActive2 = false;
         app->PulseLed2(false);
     }
+}
+
+void UI::SetPulseLength(uint8_t lenPercent)
+{
+    uint32_t mainPercent = lenPercent + outputPulseMod1;
+    uint32_t dividePercent = lenPercent + outputPulseMod2;
+
+    if (mainPercent > 100)
+        mainPercent = 100;
+
+    if (mainPercent < 0)
+        mainPercent = 0;
+
+    if (dividePercent > 100)
+        dividePercent = 100;
+
+    if (dividePercent < 0)
+        dividePercent = 0;
+
+    uint32_t wholeStep = clk->GetTicksPerBeat();
+    uint32_t newLen = (uint64_t(wholeStep) * mainPercent) / 200; // Not sure why, 50% = 100% length without this
+    if (newLen < 96)                                             // Clamp minimum pulse at 96 = 2ms
+        newLen = 96;
+
+    outputPulseLength = newLen;
+
+    uint32_t divideStep = clk->GetTicksPerSubclockBeat();
+    uint32_t newDivLen = (uint64_t(divideStep) * dividePercent) / 200; // Not sure why, 50% = 100% length without this
+    if (newDivLen < 96)                                                // Clamp minimum pulse at 96 = 2ms
+        newDivLen = 96;
+
+    outputDivideLength = newDivLen;
+}
+
+void UI::SetPulseMod(uint8_t level)
+{
+    pulseModLevel = level;
+}
+
+void UI::UpdatePulseMod(uint8_t turing1, uint8_t turing2)
+{
+    int bipolarModulation1 = (int)turing1 - 128;
+    outputPulseMod1 = (bipolarModulation1 * pulseModLevel) / 128;
+
+    int bipolarModulation2 = (int)turing2 - 128;
+    outputPulseMod2 = (bipolarModulation2 * pulseModLevel) / 128;
 }

@@ -31,15 +31,62 @@ void MainApp::UpdateNotePools()
     turingPWM2.UpdateNotePool(base_note, range, scale);
 }
 
-void MainApp::LoadSettings()
+void MainApp::UpdatePulseLengths()
+{
+
+    bool p = ModeSwitch();
+    uint8_t lengthMode = settings->preset[p].length;
+
+    switch (lengthMode)
+    {
+    case 0:
+        ui.SetPulseLength(1);
+        ui.SetPulseMod(0);
+        break;
+    case 1:
+        ui.SetPulseLength(25);
+        ui.SetPulseMod(0);
+        break;
+    case 2:
+        ui.SetPulseLength(50);
+        ui.SetPulseMod(0);
+        break;
+    case 3:
+
+        ui.SetPulseLength(75);
+        ui.SetPulseMod(0);
+
+        break;
+    case 4:
+        ui.SetPulseLength(99);
+        ui.SetPulseMod(0);
+        break;
+    case 5:
+        ui.SetPulseLength(15);
+        ui.SetPulseMod(12);
+        break;
+    case 6:
+        ui.SetPulseLength(50);
+        ui.SetPulseMod(30);
+        break;
+    default:
+        // Optional: Handle out-of-range values for `setting`
+        ui.SetPulseLength(1);
+        ui.SetPulseMod(0);
+        break;
+    }
+}
+
+void MainApp::LoadSettings(bool reset)
 {
     // Load or initialise config
-    cfg.load(0); // 1 = force reset
+    cfg.load(reset); // 1 = force reset
     settings = &cfg.get();
     CurrentBPM10 = settings->bpm; // load bpm from settings file NB bpm always 10x i.e 1200 = 120.0 bpm.
     clk.setBPM10(CurrentBPM10);
 
     UpdateNotePools();
+    UpdatePulseLengths();
 }
 
 void __not_in_flash_func(MainApp::ProcessSample)()
@@ -125,6 +172,29 @@ void MainApp::Housekeeping()
     ui.SlowUI(); // call knob checking etc
 
     updateLedState();
+
+    ui.UpdatePulseMod(turingPulseLength1.DAC_8(), turingPulseLength2.DAC_8());
+    UpdatePulseLengths();
+
+    // SEND visualisation data every 200ms after checking there is a MIDI connection
+    /*
+    static uint8_t vizCounter = 0;
+     if (++vizCounter >= 50)
+     {
+         vizCounter = 0;
+
+         if (tud_midi_n_mounted(0))
+         {
+             SendLiveStatus();
+         }
+     }
+         */
+
+    if (sendViz && tud_midi_n_mounted(0))
+    {
+        SendLiveStatus();
+        sendViz = false;
+    }
 }
 
 void MainApp::PulseLed1(bool status)
@@ -153,6 +223,7 @@ bool MainApp::PulseOutput1(bool requested)
     }
 
     PulseOut1(emit);
+    sendViz = true;
     return emit;
 }
 
@@ -242,6 +313,11 @@ bool MainApp::ModeSwitch()
     return SwitchVal() == Up;
 }
 
+bool MainApp::SwitchDown()
+{
+    return SwitchVal() == Down;
+}
+
 bool MainApp::switchChanged()
 {
     // 1 = up 0 = middle (or down)
@@ -271,6 +347,7 @@ void MainApp::lengthKnobChanged(uint8_t length)
 
     // This is where to place the LED animation for length changes
     showLengthPattern(length);
+    UpdatePulseLengths();
 }
 
 void MainApp::updateMainTuring()
@@ -393,91 +470,6 @@ void MainApp::TEST_write_to_Pulse(int i, bool val)
     PulseOut(i, val);
 }
 
-// void MainApp::sysexRespond()
-// {
-//     const uint8_t sysExStart = 0xF0;
-//     const uint8_t sysExEnd = 0xF7;
-//     const uint8_t manufacturerId = 0x7D; // Non-commercial
-//     const uint8_t deviceId = 0x01;
-//     const uint8_t messageType = 0x02;
-
-//     const uint8_t *raw = reinterpret_cast<const uint8_t *>(settings);
-//     const size_t rawLen = sizeof(Config::Data);
-
-//     // Output buffer: worst case 8/7 expansion + 4 header + 1 footer
-//     const size_t maxEncodedLen = 4 + (rawLen / 7 + 1) * 8 + 1;
-//     uint8_t msg[maxEncodedLen];
-//     size_t out = 0;
-
-//     msg[out++] = sysExStart;
-//     msg[out++] = manufacturerId;
-//     msg[out++] = deviceId;
-//     msg[out++] = messageType;
-
-//     // 7-bit encode the config data
-//     for (size_t i = 0; i < rawLen; i += 7)
-//     {
-//         uint8_t msb = 0;
-//         uint8_t block[7] = {0};
-
-//         for (size_t j = 0; j < 7 && (i + j) < rawLen; ++j)
-//         {
-//             uint8_t b = raw[i + j];
-//             if (b & 0x80)
-//                 msb |= (1 << j);
-//             block[j] = b & 0x7F;
-//         }
-
-//         msg[out++] = msb;
-//         for (size_t j = 0; j < 7 && (i + j) < rawLen; ++j)
-//         {
-//             msg[out++] = block[j];
-//         }
-//     }
-
-//     msg[out++] = sysExEnd;
-
-//     tud_midi_stream_write(0, msg, out);
-// }
-
-// void MainApp::handleSysExMessage(const uint8_t *data, size_t len)
-// {
-//     // Basic validation
-//     if (len < 5 || data[0] != 0xF0 || data[len - 1] != 0xF7)
-//         return;
-
-//     const uint8_t manufacturerId = data[1];
-//     const uint8_t deviceId = data[2];
-//     const uint8_t command = data[3];
-
-//     if (manufacturerId != 0x7D || deviceId != 0x01)
-//         return;
-
-//     const uint8_t *payload = &data[4];
-//     const size_t payloadLen = len - 5; // exclude F0, 7D, 01, cmd, F7
-
-//     switch (command)
-//     {
-//     case 0x01: // "Hello" → send config dump
-//         sysexRespond();
-//         break;
-
-//     case 0x03: // Apply config
-//         if (payloadLen == sizeof(Config::Data))
-//         {
-//             // memcpy(settings, payload, sizeof(Config::Data));
-//             // cfg.save(); // save to flash
-//         }
-//         break;
-
-//     // TODO: Add more cases here
-//     // case 0x04: send firmware version
-//     // case 0x05: apply partial settings
-//     default:
-//         break;
-//     }
-// }
-
 void MainApp::sysexRespond()
 {
     const uint8_t sysExStart = 0xF0;
@@ -544,7 +536,6 @@ void MainApp::handleSysExMessage(const uint8_t *data, size_t len)
     {
     case 0x01:
         sysexRespond();
-        printf("sysex respond");
         break;
 
     case 0x03:
@@ -568,6 +559,7 @@ void MainApp::handleSysExMessage(const uint8_t *data, size_t len)
         {
             memcpy(settings, decoded, sizeof(Config::Data));
             cfg.save();
+            LoadSettings(0);
         }
         break;
     }
@@ -575,4 +567,70 @@ void MainApp::handleSysExMessage(const uint8_t *data, size_t len)
     default:
         break;
     }
+}
+
+void MainApp::IdleLeds()
+{
+    static uint8_t tick = 0;
+
+    // Use XOR to shuffle the pattern unpredictably
+    uint8_t scrambled = tick ^ (tick << 1);
+    uint8_t index = scrambled % 6;
+
+    LedOn(index);
+    sleep_us(20000); // ~20ms flash
+    LedOff(index);
+
+    tick++;
+}
+
+// Returns the high 7-bit MIDI-safe byte (bit 7 of input)
+uint8_t MainApp::midiHi(uint8_t input)
+{
+    return (input >> 7) & 0x01;
+}
+
+// Returns the low 7-bit MIDI-safe byte (bits 0–6 of input)
+uint8_t MainApp::midiLo(uint8_t input)
+{
+    return input & 0x7F;
+}
+
+void MainApp::SendLiveStatus()
+{
+    // No need for encoding, all bytes <127
+
+    const uint8_t sysExStart = 0xF0;
+    const uint8_t sysExEnd = 0xF7;
+    const uint8_t manufacturerId = 0x7D;
+    const uint8_t deviceId = 0x01;
+    const uint8_t messageType = 0x10;
+
+    uint8_t msg[16]; // CHECK THIS!
+    size_t out = 0;
+
+    msg[out++] = sysExStart;
+    msg[out++] = manufacturerId;
+    msg[out++] = deviceId;
+    msg[out++] = messageType;
+
+    msg[out++] = midiHi(turingDAC1.DAC_8());
+    msg[out++] = midiLo(turingDAC1.DAC_8());
+
+    msg[out++] = midiHi(turingDAC2.DAC_8());
+    msg[out++] = midiLo(turingDAC2.DAC_8());
+
+    msg[out++] = midiHi(turingPWM1.DAC_8());
+    msg[out++] = midiLo(turingPWM1.DAC_8());
+
+    msg[out++] = midiHi(turingPWM2.DAC_8());
+    msg[out++] = midiLo(turingPWM2.DAC_8());
+
+    msg[out++] = KnobVal(Main) >> 5; // 0-4095 down to 0-127
+    msg[out++] = ModeSwitch();
+    msg[out++] = turingPWM1.returnLength();
+
+    msg[out++] = sysExEnd;
+
+    tud_midi_stream_write(0, msg, out);
 }

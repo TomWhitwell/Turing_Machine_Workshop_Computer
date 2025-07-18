@@ -40,12 +40,8 @@ static void core1_entry()
     multicore_fifo_push_blocking(reinterpret_cast<uintptr_t>(gApp));
     // prinft("MainApp constructed, pushed pointer\n");
 
-    uint32_t seed1 = app.MemoryCardID();
-    uint32_t seed2 = app.MemoryCardID() * 2;
+    app.LoadSettings(0);
 
-    printf("seed1 %u seed2 %u\n", seed1, seed2);
-
-    app.LoadSettings();
     // prinft("Settings loaded\n");
     app.EnableNormalisationProbe();
     app.Run(); // never returns
@@ -55,9 +51,8 @@ int main()
 {
 
     stdio_usb_init(); // Initialize USB serial // Claims for Core 0
-    sleep_ms(100);
+    sleep_ms(10);
     tusb_init();
-    printf("hello world ");
     // launch the audio engine on core 1
     multicore_launch_core1(core1_entry);
 
@@ -69,10 +64,15 @@ int main()
     uintptr_t ptr = multicore_fifo_pop_blocking();
     gApp = reinterpret_cast<MainApp *>(ptr);
 
-    // Core 0 loads settings from flash
-    gApp->LoadSettings();
-
     absolute_time_t next = make_timeout_time_ms(1);
+    sleep_ms(10); // allow switch readings to settle
+    // Reload settings - initialised to defaults, then wait until the switch is released
+    gApp->LoadSettings(gApp->SwitchDown());
+    while (gApp->SwitchDown())
+    {
+        // do nothing
+        gApp->IdleLeds();
+    }
 
     while (true)
     {

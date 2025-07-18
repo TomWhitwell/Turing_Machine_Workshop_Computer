@@ -21,7 +21,8 @@ public:
     bool ExtPulseReceived2();
     void setBPM10(uint16_t bpm10);
     uint16_t getBPM10();
-
+    uint32_t GetTicksPerBeat();
+    uint32_t GetTicksPerSubclockBeat();
     uint32_t TEST_subclock_phase = 0;
 
 private:

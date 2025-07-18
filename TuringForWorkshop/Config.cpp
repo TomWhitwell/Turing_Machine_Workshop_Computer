@@ -77,6 +77,7 @@ void Config::save()
 
     multicore_lockout_end_blocking(); // 3) release Core 1
     restore_interrupts(ints);         // 4) IRQs on
+
 }
 
 Config::Data &Config::get()

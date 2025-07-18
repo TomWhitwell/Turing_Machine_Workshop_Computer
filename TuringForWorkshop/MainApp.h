@@ -29,6 +29,7 @@ public:
     uint16_t KnobX();
     uint16_t KnobY();
     bool ModeSwitch();
+    bool SwitchDown();
 
     void divideKnobChanged(uint8_t step);
     void lengthKnobChanged(uint8_t length);
@@ -40,7 +41,7 @@ public:
 
     void Housekeeping();
 
-    void LoadSettings();
+    void LoadSettings(bool reset);
 
     uint64_t processTime;     // TESTING
     uint64_t lastProcessTime; // TESTING
@@ -51,7 +52,9 @@ public:
     void updateLedState();
     void TEST_write_to_Pulse(int i, bool val);
     void UpdateNotePools();
+    void UpdatePulseLengths();
     bool switchChanged();
+    void IdleLeds();
 
 private:
     Clock clk;
@@ -90,4 +93,10 @@ private:
 
     void sysexRespond();
     void handleSysExMessage(const uint8_t *data, size_t len);
+
+    void SendLiveStatus();
+    uint8_t midiHi(uint8_t input);
+    uint8_t midiLo(uint8_t input);
+
+    bool sendViz = false;
 };
