@@ -5,6 +5,12 @@
 #include <inttypes.h>  // temporary for testing
 #include "tusb.h"
 
+// Config variables in HEX
+const int CARD_NUMBER = 0x03;
+const int MAJOR_VERSION = 0x04;
+const int MINOR_VERSION = 0x00;
+const int POINT_VERSION = 0x00;
+
 MainApp::MainApp()
 
     // Initialise the Turing machines with variations of the memory card ID, unique but not random
@@ -52,10 +58,8 @@ void MainApp::UpdatePulseLengths()
         ui.SetPulseMod(0);
         break;
     case 3:
-
         ui.SetPulseLength(75);
         ui.SetPulseMod(0);
-
         break;
     case 4:
         ui.SetPulseLength(99);
@@ -87,6 +91,7 @@ void MainApp::LoadSettings(bool reset)
 
     UpdateNotePools();
     UpdatePulseLengths();
+    updateCh2Lengths();
 }
 
 void __not_in_flash_func(MainApp::ProcessSample)()
@@ -174,21 +179,8 @@ void MainApp::Housekeeping()
     updateLedState();
 
     ui.UpdatePulseMod(turingPulseLength1.DAC_8(), turingPulseLength2.DAC_8());
+
     UpdatePulseLengths();
-
-    // SEND visualisation data every 200ms after checking there is a MIDI connection
-    /*
-    static uint8_t vizCounter = 0;
-     if (++vizCounter >= 50)
-     {
-         vizCounter = 0;
-
-         if (tud_midi_n_mounted(0))
-         {
-             SendLiveStatus();
-         }
-     }
-         */
 
     if (sendViz && tud_midi_n_mounted(0))
     {
@@ -338,16 +330,31 @@ void MainApp::divideKnobChanged(uint8_t step)
 
 void MainApp::lengthKnobChanged(uint8_t length)
 {
+
+    bool p = ModeSwitch();
+
+    int lengthPlus = settings->preset[p].looplen - 1; // Because 1-1 = 0, 0-1 = -1
+
     turingDAC1.updateLength(length);
-    turingDAC2.updateLength(length);
+    turingDAC2.updateLength(length + lengthPlus);
     turingPWM1.updateLength(length);
-    turingPWM2.updateLength(length);
+    turingPWM2.updateLength(length + lengthPlus);
     turingPulseLength1.updateLength(length);
-    turingPulseLength2.updateLength(length);
+    turingPulseLength2.updateLength(length + lengthPlus);
 
     // This is where to place the LED animation for length changes
     showLengthPattern(length);
     UpdatePulseLengths();
+}
+
+void MainApp::updateCh2Lengths()
+{
+    bool p = ModeSwitch();
+    int lengthPlus = settings->preset[p].looplen - 1; // Because 1-1 = 0, 0-1 = -1
+    uint16_t length = turingPWM1.returnLength();
+    turingDAC2.updateLength(length + lengthPlus);
+    turingPWM2.updateLength(length + lengthPlus);
+    turingPulseLength2.updateLength(length + lengthPlus);
 }
 
 void MainApp::updateMainTuring()
@@ -475,20 +482,26 @@ void MainApp::sysexRespond()
     const uint8_t sysExStart = 0xF0;
     const uint8_t sysExEnd = 0xF7;
     const uint8_t manufacturerId = 0x7D;
-    const uint8_t deviceId = 0x01;
+    const uint8_t CARD_NUMBER = 0x03; // Card 03 = Turing Machine
     const uint8_t messageType = 0x02;
 
     const uint8_t *raw = reinterpret_cast<const uint8_t *>(settings);
     const size_t rawLen = sizeof(Config::Data);
 
-    const size_t maxLen = 4 + ((rawLen + 6) / 7) * 8 + 1;
+    const size_t maxLen = 7 + ((rawLen + 6) / 7) * 8 + 1;
     uint8_t msg[maxLen];
     size_t out = 0;
 
     msg[out++] = sysExStart;
     msg[out++] = manufacturerId;
-    msg[out++] = deviceId;
+    msg[out++] = CARD_NUMBER;
     msg[out++] = messageType;
+    msg[out++] = MAJOR_VERSION;
+    msg[out++] = MINOR_VERSION;
+    msg[out++] = POINT_VERSION;
+
+    // Encodes the entire settings Data file from config.h
+    // Includes:
 
     // Encode in 7-byte chunks with MSB prefix
     for (size_t i = 0; i < rawLen; i += 7)
@@ -521,7 +534,7 @@ void MainApp::sysexRespond()
 void MainApp::handleSysExMessage(const uint8_t *data, size_t len)
 {
     if (len < 5 || data[0] != 0xF0 || data[len - 1] != 0xF7)
-        return;
+        return; // not a sysex message
 
     const uint8_t manufacturerId = data[1];
     const uint8_t deviceId = data[2];
@@ -529,7 +542,7 @@ void MainApp::handleSysExMessage(const uint8_t *data, size_t len)
     const uint8_t *payload = &data[4];
     const size_t payloadLen = len - 5;
 
-    if (manufacturerId != 0x7D || deviceId != 0x01)
+    if (manufacturerId != 0x7D || deviceId != 0x03)
         return;
 
     switch (command)
@@ -557,7 +570,13 @@ void MainApp::handleSysExMessage(const uint8_t *data, size_t len)
 
         if (out == sizeof(Config::Data))
         {
+
             memcpy(settings, decoded, sizeof(Config::Data));
+
+            // Before saving incoming config, overwrite BPM with corrrect local value
+
+            settings->bpm = CurrentBPM10;
+
             cfg.save();
             LoadSettings(0);
         }
@@ -603,7 +622,7 @@ void MainApp::SendLiveStatus()
     const uint8_t sysExStart = 0xF0;
     const uint8_t sysExEnd = 0xF7;
     const uint8_t manufacturerId = 0x7D;
-    const uint8_t deviceId = 0x01;
+    const uint8_t deviceId = 0x03;
     const uint8_t messageType = 0x10;
 
     uint8_t msg[16]; // CHECK THIS!

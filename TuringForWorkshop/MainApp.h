@@ -55,6 +55,7 @@ public:
     void UpdatePulseLengths();
     bool switchChanged();
     void IdleLeds();
+    void updateCh2Lengths();
 
 private:
     Clock clk;

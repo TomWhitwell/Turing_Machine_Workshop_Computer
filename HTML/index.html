@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Turing Machine Editor</title>
   <link href="https://fontlibrary.org/face/osp-din" rel="stylesheet" type="text/css">
-
-<style>
+  <style>
   :root {
     --bg: #000;
     --text: #fff;
@@ -36,10 +35,17 @@
   }
 
   #midiError {
-    color: red;
+    color: white;
     font-weight: bold;
     margin-bottom: 2rem;
     display: none;
+    font-size: 2em;
+
+  }
+
+  #midiError a {
+  color: #ffffff; /* or any color you like */
+  text-decoration: underline; /* optional: adds underline */
   }
 
   .config-grid {
@@ -141,7 +147,7 @@
     gap: 0;
     align-items: start;
     justify-items: end;
-grid-column: 2;
+  grid-column: 2;
   }
 
   .visualizer {
@@ -202,52 +208,79 @@ grid-column: 2;
     flex: 1 1 600px;
     min-width: 300px;
   }
-</style>
-
-
-
+  </style>
 </head>
 <body>
-<div class="page-layout">
-
-<div class="top-bar">
-  <div class="title-block">
-    <h1>Turing Machine Editor</h1>
-    <p id="versionInfo">Loading version info...</p>
+  <div class="page-layout">
+    <div class="top-bar">
+      <div class="title-block">
+        <h1>Turing Machine Editor</h1>
+        <p id="versionInfo">Loading version info...</p>
+      </div>
+      <div id="visualizerContainer" class="visualizer-container"></div>
+    </div>
+    <div id="midiError">
+      <p>Can't find or connect to a MIDI device</p>
+      <ul>
+        <li>Check you have a USB-C cable connecting your computer with the Computer USB-C port</li>
+        <li>If you have an old version of the MIDI card, <a href="https://www.musicthing.co.uk/web_config/turing.html">try using the old editor</a>.
+        </li>
+        <li>If you have the latest version of the MIDI card, try cycling power off and on, then refreshing the browser.</li>
+        <li>This config page is only tested in Chrome, although other Web MIDI compatible browsers</li>
+        <li>Ensure you've <a href="https://support.google.com/chrome/answer/14871962">given permission to access MIDI</a>.
+        </li>
+      </ul>
+    </div>
+    <div id="config" class="config-grid"></div>
   </div>
-  <div id="visualizerContainer" class="visualizer-container"></div>
-</div>
-  
-  
-  <p id="midiError">No MIDI device connected.</p>
-  <div id="config" class="config-grid"></div>
-
-</div>
-
   <script>
   const presets = [
     { name: "Scale", key: "scale", labels: ["Chrom", "Major", "Minor", "Minor Pent", "Dorian", "Pelog", "Wholetone"], repeat: 2 },
-    { name: "Notes", key: "notes", labels: ["This", "was", "an", "old", "idea", "i", "dropped "], repeat: 2 },
-    { name: "Range", key: "range", labels: ["1", "2", "3", "4"], repeat: 2 },
+    { name: "Octave Range", key: "range", labels: ["1", "2", "3", "4"], repeat: 2 },
     { name: "Note Length", key: "notelen", labels: ["Blip", "25%", "50%", "75%", "Full", "← → Short", "← → Long"], repeat: 2 },
-    { name: "Loop Length", key: "looplen", labels: ["2", "4", "8", "16"], repeat: 2 },
-    { name: "Pulse 1 Mode", key: "pulseMode1", labels: ["Off", "On"], repeat: 2 },
-    { name: "Pulse 2 Mode", key: "pulseMode2", labels: ["Off", "On"], repeat: 2 },
+    { name: "Loop Length", key: "looplen", labels: ["Ch.2 is one step shorter", "Ch.2 = Ch.1"], repeat: 2 },
+    { name: "Pulse 1 Mode", key: "pulseMode1", labels: ["Clock", "Turing"], repeat: 2 },
+    { name: "Pulse 2 Mode", key: "pulseMode2", labels: ["Clock", "Turing"], repeat: 2 },
   ];
 
   const EDITOR_MAJOR_VERSION = 0x00;
   const EDITOR_MINOR_VERSION = 0x01;
   const EDITOR_POINT_VERSION = 0x00;
-
-  const CARD_LATEST_MAJOR_VERSION = 0x00;
-  const CARD_LATEST_MINOR_VERSION = 0x00;
-  const CARD_LATEST_POINT_VERSION = 0x09;
+  
+    const  SYSEX_START = 0xF0;
+    const  SYSEX_END = 0xF7;
+    const  MANU_ID = 0x7D;
+    const  CARD_NUMBER = 0x03; // Card 03 = Turing Machine
+    const CMD_SEND_CONFIG = 0x01; 
+    const CMD_RECEIVE_CONFIG = 0X03; 
+  
+  
 
   let uiReady = false;
 
-  let cardVersion = { major: "0", minor: "1", point: "5" }; // placeholder
+  let cardVersion = { major: "0", minor: "0", point: "0" }; // placeholder
   const currentValues = {};
   let midiOutput = null;
+
+
+  async function getLatestReleaseVersion(repoOwner, repoName) {
+  const url = `https://api.github.com/repos/${repoOwner}/${repoName}/releases/latest`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
+    
+    const data = await response.json();
+    return data.tag_name || data.name; // often tag_name holds "v1.2.3"
+  } catch (error) {
+    console.error('Failed to fetch release info:', error);
+    return null;
+  }
+  }
+
+
+
+
 
   async function initMIDI() {
     try {
@@ -265,8 +298,9 @@ grid-column: 2;
       }
     } catch (err) {
       console.error("Failed to access Web MIDI:", err);
-      document.getElementById("midiError").textContent = "MIDI access denied or unavailable.";
+      document.getElementById("midiError").textContent = "MIDI access denied or unavailable. You may be using a browser (such as Safari) that doesn't support web MIDI";
       document.getElementById("midiError").style.display = "block";
+      document.getElementById("config").style.display = "none";
     }
   }
 
@@ -290,7 +324,7 @@ grid-column: 2;
 
   function sendConfigRequest() {
     if (!midiOutput) return;
-    const msg = [0xF0, 0x7D, 0x01, 0x01, 0xF7];
+    const msg = [SYSEX_START, MANU_ID, CARD_NUMBER, CMD_SEND_CONFIG, SYSEX_END];
     console.log("Sending config request:", hexArray(msg));
     midiOutput.send(msg);
   }
@@ -299,7 +333,7 @@ grid-column: 2;
     if (!midiOutput) return;
     const raw = getConfigBytes();
     const payload = encode7BitSysex(raw);
-    const msg = [0xF0, 0x7D, 0x01, 0x03, ...payload, 0xF7];
+    const msg = [SYSEX_START, MANU_ID, CARD_NUMBER, CMD_RECEIVE_CONFIG, ...payload, SYSEX_END];
     console.log("Sending full config:", hexArray(msg));
     midiOutput.send(msg);
   }
@@ -308,10 +342,10 @@ grid-column: 2;
     const CONFIG_SIZE = 22;
     const buf = new Uint8Array(CONFIG_SIZE);
     const view = new DataView(buf.buffer);
-    view.setUint32(0, 0x434F4E46, true);
-    view.setUint16(4, 1605, true);
-    buf[6] = 5;
-    buf[7] = 0;
+    view.setUint32(0, 0x434F4E46, true); // MAGIC NUMBER CONF
+    view.setUint16(4, 1605, true); // BPM - write blank then overwrite on arrival at device 
+    buf[6] = 5; // Divide - should be removed from here 
+    buf[7] = 0; // CV range - should be removed from here 
 
     let i = 8;
     for (let p = 0; p < 2; p++) {
@@ -355,15 +389,34 @@ grid-column: 2;
 
   function handleMIDIMessage(e) {
     const d = [...e.data];
-    if (d[0] !== 0xF0 || d[1] !== 0x7D || d[2] !== 0x01 || d[d.length - 1] !== 0xF7) return;
+    if (d[0] !== SYSEX_START || d[1] !== MANU_ID || d[2] !== 0x03 || d[d.length - 1] !== SYSEX_END) return;
+
+
+  console.log("this is the data:", hexArray(d));
 
     const command = d[3];
-    const payload = d.slice(4, d.length - 1);
+    
     if (command === 0x02) {
+
+  cardVersion = {
+    major: d[4],
+    minor: d[5],
+    point: d[6]
+  }
+
+    const payload = d.slice(7, d.length - 1); // Start payload AFTER cardversion 
+
+    console.log("handling entire message:", hexArray(d));
+    console.log("handling payload:", hexArray(payload));
       const decoded = decode7BitSysex(payload);
+          console.log("decoded payload:", hexArray(decoded));
       applyConfig(decoded);
+  displayVersionInfo();
+      
+      
     } else if (command === 0x10) {
-    console.log("handling status message:", hexArray(payload));
+
+const payload = d.slice(4, d.length - 1); // Start payload after header  
       handleStatusMessage(payload);
     }
   }
@@ -448,7 +501,7 @@ grid-column: 2;
   const visualizers = [];
 
 
-function setupLiveStatusVisualizers() {
+  function setupLiveStatusVisualizers() {
   const container = document.createElement("div");
   container.className = "visualizer-container";
 
@@ -482,22 +535,13 @@ function setupLiveStatusVisualizers() {
     }, 0);
   }
 
-//   // Instead of: document.body.appendChild(container);
-//   const topContainer = document.createElement("div");
-//   topContainer.className = "top-bar";
-// 
-//   const title = document.querySelector("h1");
-//   const visualizerContainer = container;
-// 
-// topContainer.appendChild(visualizerContainer);
-// title.parentNode.insertBefore(topContainer, title.nextSibling);
-// Append visualizerContainer (already in DOM)
-const visualizerContainer = document.getElementById("visualizerContainer");
-visualizerContainer.appendChild(container);
+
+  const visualizerContainer = document.getElementById("visualizerContainer");
+  visualizerContainer.appendChild(container);
 
 
 
-}
+  }
 
   function createVisualizer(index, bipolar = false) {
     const bitContainer = document.getElementById(`bits-${index}`);
@@ -577,51 +621,66 @@ visualizerContainer.appendChild(container);
       payload[10]
     ];
     
-  console.log(
-  "DAC1: %d\tDAC2: %d\tPWM1: %d\tPWM2: %d",
-  values[0],
-  values[1],
-  values[2],
-  values[3]
-  );
+
     visualizers[0].update(values[0]);
     visualizers[1].update(values[1]);
     visualizers[2].update(values[2]);
     visualizers[3].update(values[3]);
   }
 
-  function displayVersionInfo() {
-    const editorVersion = `${EDITOR_MAJOR_VERSION}.${EDITOR_MINOR_VERSION}.${EDITOR_POINT_VERSION}`;
-    const card = `${cardVersion.major}.${cardVersion.minor}.${cardVersion.point}`;
-    const versionText = `Editor v${editorVersion} — Program Card v${card}`;
-    const statusSpan = document.createElement("span");
-    const current = [
-      parseInt(cardVersion.major),
-      parseInt(cardVersion.minor),
-      parseInt(cardVersion.point)
-    ];
-    const latest = [
-      CARD_LATEST_MAJOR_VERSION,
-      CARD_LATEST_MINOR_VERSION,
-      CARD_LATEST_POINT_VERSION
-    ];
-    let isUpgradeAvailable = false;
-    for (let i = 0; i < 3; i++) {
-      if (current[i] < latest[i]) {
-        isUpgradeAvailable = true;
-        break;
-      } else if (current[i] > latest[i]) {
-        break;
+  async function displayVersionInfo() {
+  const editorVersion = `${EDITOR_MAJOR_VERSION}.${EDITOR_MINOR_VERSION}.${EDITOR_POINT_VERSION}`;
+  const card = `${cardVersion.major}.${cardVersion.minor}.${cardVersion.point}`;
+  const versionText = `Editor v${editorVersion} — Program Card v${card}`;
+  const statusSpan = document.createElement("span");
+
+  let latestVersion = [0, 0, 0];
+
+  try {
+    const response = await fetch("https://api.github.com/repos/TomWhitwell/Smith-Kakehashi/releases/latest");
+    if (response.ok) {
+      const data = await response.json();
+      const tag = data.tag_name || "";
+      const match = tag.match(/v?(\d+)\.(\d+)\.(\d+)/);
+      if (match) {
+        latestVersion = [
+          parseInt(match[1], 10),
+          parseInt(match[2], 10),
+          parseInt(match[3], 10)
+        ];
       }
-    }
-    if (isUpgradeAvailable) {
-      statusSpan.innerHTML = ` <a href="http://www.musicthing.co.uk/latest/" target="_blank" style="background-color: red; color: white; padding: 0.1em 0.4em; border-radius: 0.2em; text-decoration: none; font-weight: bold; margin-left: 0.5em;">UPGRADE AVAILABLE</a>`;
     } else {
-      statusSpan.innerHTML = ` <span style="background-color: limegreen; color: black; padding: 0.1em 0.4em; border-radius: 0.2em; font-weight: bold; margin-left: 0.5em;">LATEST</span>`;
+      console.warn("Could not fetch latest version:", response.status);
     }
-    const info = document.getElementById("versionInfo");
-    info.textContent = versionText;
-    info.appendChild(statusSpan);
+  } catch (err) {
+    console.error("Error fetching latest release:", err);
+  }
+
+  const current = [
+    parseInt(cardVersion.major),
+    parseInt(cardVersion.minor),
+    parseInt(cardVersion.point)
+  ];
+
+  let isUpgradeAvailable = false;
+  for (let i = 0; i < 3; i++) {
+    if (current[i] < latestVersion[i]) {
+      isUpgradeAvailable = true;
+      break;
+    } else if (current[i] > latestVersion[i]) {
+      break;
+    }
+  }
+
+  if (isUpgradeAvailable) {
+    statusSpan.innerHTML = ` <a href="http://www.musicthing.co.uk/latest/" target="_blank" style="background-color: red; color: white; padding: 0.1em 0.4em; border-radius: 0.2em; text-decoration: none; font-weight: bold; margin-left: 0.5em;">UPGRADE AVAILABLE</a>`;
+  } else {
+    statusSpan.innerHTML = ` <span style="background-color: limegreen; color: black; padding: 0.1em 0.4em; border-radius: 0.2em; font-weight: bold; margin-left: 0.5em;">LATEST</span>`;
+  }
+
+  const info = document.getElementById("versionInfo");
+  info.textContent = versionText;
+  info.appendChild(statusSpan);
   }
 
   // === Initialization ===
@@ -629,7 +688,22 @@ visualizerContainer.appendChild(container);
   uiReady = true;
   setupLiveStatusVisualizers();
   initMIDI();
-  displayVersionInfo();
+
+// 
+//   getLatestReleaseVersion('TomWhitwell', 'Smith-Kakehashi')
+//   .then(version => {
+//     if (version) {
+//       console.log('Latest version:', version);
+//     } else {
+//       console.log('Could not retrieve version info');
+//     }
+//   });
+// 
+
+
+
+
+
   </script>
 </body>
 </html>

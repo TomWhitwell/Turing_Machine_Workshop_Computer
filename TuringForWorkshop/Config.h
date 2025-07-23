@@ -14,7 +14,6 @@ public:
     struct Preset
     {
         uint8_t scale;
-        uint8_t notes;
         uint8_t range;
         uint8_t length;
         uint8_t looplen;
@@ -39,8 +38,8 @@ public:
         uint8_t cvRange = 0;
 
         Preset preset[2] = {
-            {3, 0, 2, 5, 1, 0, 0}, // Preset 0
-            {3, 1, 1, 5, 1, 0, 1}  // Preset 1
+            {3, 2, 5, 1, 0, 0}, // Preset 0
+            {3, 1, 5, 1, 0, 1}  // Preset 1
         };
     };
 

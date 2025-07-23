@@ -106,6 +106,7 @@ void UI::SlowUI()
     {
         app->UpdateNotePools();
         app->UpdatePulseLengths();
+        app->updateCh2Lengths();
     }
 }
 
