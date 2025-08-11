@@ -19,6 +19,7 @@ public:
         uint8_t looplen;
         uint8_t pulseMode1;
         uint8_t pulseMode2;
+        uint8_t cvRange;
     };
 
     struct Data
@@ -38,8 +39,8 @@ public:
         uint8_t cvRange = 0;
 
         Preset preset[2] = {
-            {3, 2, 5, 1, 0, 0}, // Preset 0
-            {3, 1, 5, 1, 0, 1}  // Preset 1
+            {3, 2, 5, 1, 0, 0, 0}, // Preset 0
+            {3, 1, 5, 1, 0, 1, 3}  // Preset 1
         };
     };
 

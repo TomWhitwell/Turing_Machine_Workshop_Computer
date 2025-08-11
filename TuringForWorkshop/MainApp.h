@@ -55,7 +55,8 @@ public:
     void UpdatePulseLengths();
     bool switchChanged();
     void IdleLeds();
-    void updateCh2Lengths();
+    void UpdateCh2Lengths();
+    void UpdateCVRange();
 
 private:
     Clock clk;
@@ -100,4 +101,10 @@ private:
     uint8_t midiLo(uint8_t input);
 
     bool sendViz = false;
+
+    // To handle CV mapping
+    int16_t cv_lut[256];
+    void cv_map_build(int32_t low, int32_t high);
+    void cv_set_mode(uint8_t mode);
+    int16_t cv_map_u8(uint8_t x);
 };

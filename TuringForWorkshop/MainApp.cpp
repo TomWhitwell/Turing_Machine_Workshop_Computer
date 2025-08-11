@@ -91,7 +91,8 @@ void MainApp::LoadSettings(bool reset)
 
     UpdateNotePools();
     UpdatePulseLengths();
-    updateCh2Lengths();
+    UpdateCh2Lengths();
+    UpdateCVRange();
 }
 
 void __not_in_flash_func(MainApp::ProcessSample)()
@@ -347,7 +348,7 @@ void MainApp::lengthKnobChanged(uint8_t length)
     UpdatePulseLengths();
 }
 
-void MainApp::updateCh2Lengths()
+void MainApp::UpdateCh2Lengths()
 {
     bool p = ModeSwitch();
     int lengthPlus = settings->preset[p].looplen - 1; // Because 1-1 = 0, 0-1 = -1
@@ -355,6 +356,13 @@ void MainApp::updateCh2Lengths()
     turingDAC2.updateLength(length + lengthPlus);
     turingPWM2.updateLength(length + lengthPlus);
     turingPulseLength2.updateLength(length + lengthPlus);
+}
+
+void MainApp::UpdateCVRange()
+{
+    bool p = ModeSwitch();
+    int cvRange = settings->preset[p].cvRange;
+    cv_set_mode(cvRange);
 }
 
 void MainApp::updateMainTuring()
@@ -365,7 +373,9 @@ void MainApp::updateMainTuring()
     turingPWM1.Update(KnobVal(Main), maxRange);
     turingPulseLength1.Update(KnobVal(Main), maxRange);
 
-    AudioOut1(turingDAC1.DAC_8() << 4);
+    // Scaled CV out on CV/Audio 1
+    uint16_t dac = cv_map_u8(turingDAC1.DAC_8());
+    AudioOut1(dac);
 
     int midi_note = turingPWM1.MidiNote();
 
@@ -378,7 +388,10 @@ void MainApp::updateDivTuring()
     turingPWM2.Update(KnobVal(Main), maxRange);
     turingPulseLength2.Update(KnobVal(Main), maxRange);
 
-    AudioOut2(turingDAC2.DAC_8() << 4);
+    // Scaled CV out on CV/Audio 2
+    uint16_t dac = cv_map_u8(turingDAC2.DAC_8());
+    AudioOut2(dac);
+
     CVOut2MIDINote(turingPWM2.MidiNote());
 }
 
@@ -652,4 +665,54 @@ void MainApp::SendLiveStatus()
     msg[out++] = sysExEnd;
 
     tud_midi_stream_write(0, msg, out);
+}
+
+void MainApp::cv_map_build(int32_t low, int32_t high)
+{
+    const int32_t span = high - low;              // can be negative
+    const int32_t lo = (low < high) ? low : high; // for safety clamp
+    const int32_t hi = (low < high) ? high : low;
+
+    for (int x = 0; x < 256; ++x)
+    {
+        // Exact linear map on 0..255 without overflow; signed-safe.
+        // No rounding term so x=255 lands exactly on 'high'.
+        int32_t y = low + (span * x) / 255;
+
+        // Optional safety clamp to the given endpoints (supports low>high too)
+        if (y < lo)
+            y = lo;
+        if (y > hi)
+            y = hi;
+
+        cv_lut[x] = (int16_t)y;
+    }
+}
+
+void MainApp::cv_set_mode(uint8_t mode)
+{
+    // Matches your 4 ranges
+    switch (mode)
+    {
+    case 0: /* ±6V  */
+        cv_map_build(-2048, 2047);
+        break;
+    case 1: /* ±3V  */
+        cv_map_build(-1024, 1024);
+        break;
+    case 2: /* 0..6V*/
+        cv_map_build(0, 2047);
+        break;
+    case 3: /* 0..3V*/
+        cv_map_build(0, 1024);
+        break; // 0..+2.5V
+    default:
+        cv_map_build(-2048, 2047);
+        break; // safe default
+    }
+}
+
+int16_t MainApp::cv_map_u8(uint8_t x)
+{
+    return cv_lut[x]; // O(1) in the audio loop
 }
