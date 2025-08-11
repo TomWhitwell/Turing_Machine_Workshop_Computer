@@ -246,15 +246,15 @@
   const EDITOR_MAJOR_VERSION = 0x00;
   const EDITOR_MINOR_VERSION = 0x01;
   const EDITOR_POINT_VERSION = 0x00;
-  
+
     const  SYSEX_START = 0xF0;
     const  SYSEX_END = 0xF7;
     const  MANU_ID = 0x7D;
     const  CARD_NUMBER = 0x03; // Card 03 = Turing Machine
     const CMD_SEND_CONFIG = 0x01; 
     const CMD_RECEIVE_CONFIG = 0X03; 
-  
-  
+
+
 
   let uiReady = false;
 
@@ -339,7 +339,12 @@
   }
 
   function getConfigBytes() {
-    const CONFIG_SIZE = 22;
+    const HEADER_SIZE = 8;
+
+    const maxPresets = Math.max(...presets.map(p => p.repeat || 1));
+    // Total fields = sum of repeats across settings (each repeat = one byte)
+    const TOTAL_FIELDS = presets.reduce((sum, s) => sum + (s.repeat || 1), 0);
+    const CONFIG_SIZE = HEADER_SIZE + TOTAL_FIELDS;
     const buf = new Uint8Array(CONFIG_SIZE);
     const view = new DataView(buf.buffer);
     view.setUint32(0, 0x434F4E46, true); // MAGIC NUMBER CONF
@@ -416,7 +421,7 @@
       
     } else if (command === 0x10) {
 
-const payload = d.slice(4, d.length - 1); // Start payload after header  
+  const payload = d.slice(4, d.length - 1); // Start payload after header  
       handleStatusMessage(payload);
     }
   }
@@ -689,16 +694,16 @@ const payload = d.slice(4, d.length - 1); // Start payload after header
   setupLiveStatusVisualizers();
   initMIDI();
 
-// 
-//   getLatestReleaseVersion('TomWhitwell', 'Smith-Kakehashi')
-//   .then(version => {
-//     if (version) {
-//       console.log('Latest version:', version);
-//     } else {
-//       console.log('Could not retrieve version info');
-//     }
-//   });
-// 
+  // 
+  //   getLatestReleaseVersion('TomWhitwell', 'Smith-Kakehashi')
+  //   .then(version => {
+  //     if (version) {
+  //       console.log('Latest version:', version);
+  //     } else {
+  //       console.log('Could not retrieve version info');
+  //     }
+  //   });
+  // 
 
 
 
