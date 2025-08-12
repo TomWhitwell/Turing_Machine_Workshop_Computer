@@ -30,6 +30,7 @@ public:
     uint16_t KnobY();
     bool ModeSwitch();
     bool SwitchDown();
+    int16_t readInputIfConnected(Input inputType);
 
     void divideKnobChanged(uint8_t step);
     void lengthKnobChanged(uint8_t length);
@@ -107,4 +108,12 @@ private:
     void cv_map_build(int32_t low, int32_t high);
     void cv_set_mode(uint8_t mode);
     int16_t cv_map_u8(uint8_t x);
+
+    // Experimental - CV2 to note offset
+    int CVtoMidiOffset(int16_t raw);
+    uint8_t midiOffset = 0;
+
+    // Experimental trigger reset from AudioCV 2
+    void onRisingEdgeAudio1();
+    void detectAudio1RisingEdge();
 };

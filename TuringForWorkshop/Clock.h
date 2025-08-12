@@ -15,6 +15,9 @@ public:
     void UpdateDivide(uint8_t step);
     void setExternalClock1(bool ext);
     void setExternalClock2(bool ext);
+    bool getExternalClock1();
+    bool getExternalClock2();
+
     void ExtPulse1();
     void ExtPulse2();
     bool ExtPulseReceived1();

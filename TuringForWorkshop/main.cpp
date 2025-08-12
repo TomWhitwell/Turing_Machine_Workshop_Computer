@@ -9,8 +9,6 @@
  *    - PICO_COPY_TO_RAM 1  (so flash stalls don’t hurt audio)
  ***********************************************************/
 
-
-
 #include "pico/version.h"
 #pragma message("SDK = " PICO_SDK_VERSION_STRING)
 
@@ -34,11 +32,6 @@ static void core1_entry()
     static MainApp app; // all ComputerCard work lives here
     gApp = &app;        // publish pointer for Core 0
     multicore_fifo_push_blocking(reinterpret_cast<uintptr_t>(gApp));
-    // prinft("MainApp constructed, pushed pointer\n");
-
-    app.LoadSettings(0);
-
-    // prinft("Settings loaded\n");
     app.EnableNormalisationProbe();
     app.Run(); // never returns
 }

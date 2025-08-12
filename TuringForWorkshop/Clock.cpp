@@ -179,6 +179,16 @@ void Clock::setExternalClock2(bool ext)
     isExternalClock2 = ext;
 }
 
+bool Clock::getExternalClock1()
+{
+    return isExternalClock1;
+}
+
+bool Clock::getExternalClock2()
+{
+    return isExternalClock2;
+}
+
 void Clock::ExtPulse1()
 {
     receivedExtPulse1 = true;

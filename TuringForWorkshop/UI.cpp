@@ -78,10 +78,19 @@ void UI::Tick()
 void UI::SlowUI()
 {
 
+    uint16_t minVal = 0;
+    uint16_t maxVal = 4095;
+
     // Check for divide knob changes
     uint16_t knobTemp = app->KnobY();
-    uint16_t step = QuantiseToStep(knobTemp, numDivideSteps, 4105); // Range of 4105 to ensure 0-8 range on 4096 pot
-    if (step >= numDivideSteps)                                     // make sure it's in 0..8
+
+    // Add knob value
+    int16_t inputTemp = app->readInputIfConnected(ComputerCard::CV1); // returns zero if nothing connected 
+    int16_t valueTemp = knobTemp + inputTemp;
+    CLAMP(valueTemp, minVal, maxVal); 
+
+    uint16_t step = QuantiseToStep(valueTemp, numDivideSteps, 4095);
+    if (step >= numDivideSteps)
         step = numDivideSteps - 1;
     if (step != lastDivideStep)
     {
@@ -91,7 +100,7 @@ void UI::SlowUI()
 
     // Check for Length knob changes
     knobTemp = app->KnobX();
-    step = QuantiseToStep(knobTemp, numLengthSteps, 4105);
+    step = QuantiseToStep(knobTemp, numLengthSteps, 4095);
 
     int newlen = lengths[step];
 
@@ -111,10 +120,29 @@ void UI::SlowUI()
     }
 }
 
+// uint8_t UI::QuantiseToStep(uint32_t knobVal, uint8_t steps, uint32_t range)
+// {
+//     uint16_t step_size = range / steps;
+//     return knobVal / step_size;
+// }
+
 uint8_t UI::QuantiseToStep(uint32_t knobVal, uint8_t steps, uint32_t range)
 {
-    uint16_t step_size = range / steps;
-    return knobVal / step_size;
+    if (steps == 0)
+        return 0; // safety
+
+    uint32_t step_size = range / steps;
+    if (step_size == 0)
+        return 0; // safety for very small ranges
+
+    // Round to nearest step, not floor
+    uint32_t step = (knobVal + (step_size / 2)) / step_size;
+
+    // Clamp to max valid index
+    if (step >= steps)
+        step = steps - 1;
+
+    return static_cast<uint8_t>(step);
 }
 
 void UI::TriggerPulse1()

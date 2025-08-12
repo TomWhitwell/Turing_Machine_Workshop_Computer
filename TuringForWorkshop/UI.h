@@ -3,6 +3,7 @@
 
 class MainApp;
 class Clock;
+#define CLAMP(val, min, max) ((val) < (min) ? (min) : ((val) > (max) ? (max) : (val)))
 
 class UI
 {

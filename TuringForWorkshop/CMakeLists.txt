@@ -27,6 +27,8 @@ project(TuringForWorkshop C CXX ASM)
 
 pico_sdk_init()
 
+set(PICO_BOOT_STAGE2 boot2_w25q080.S)
+
 
 # Create the executable from your source files
 add_executable(${PROJECT_NAME}

@@ -7,8 +7,8 @@
 
 // Config variables in HEX
 const int CARD_NUMBER = 0x03;
-const int MAJOR_VERSION = 0x04;
-const int MINOR_VERSION = 0x00;
+const int MAJOR_VERSION = 0x01;
+const int MINOR_VERSION = 0x05;
 const int POINT_VERSION = 0x00;
 
 MainApp::MainApp()
@@ -127,6 +127,8 @@ void __not_in_flash_func(MainApp::ProcessSample)()
 
     ui.Tick();
 
+    detectAudio1RisingEdge();
+
     // CVOut1((clk.GetPhase() >> 20) - 2048); // just for debugging, remove
     // CVOut2((clk.TEST_subclock_phase >> 20) - 2048);
 
@@ -183,6 +185,29 @@ void MainApp::Housekeeping()
 
     UpdatePulseLengths();
 
+    // Check if external clocks have been unplugged
+    if (clk.getExternalClock1() && !PulseInConnected1())
+    {
+
+        clk.setExternalClock1(false);
+        CurrentBPM10 = settings->bpm;
+        clk.setBPM10(CurrentBPM10);
+    }
+
+    if (!PulseInConnected2() && clk.getExternalClock2())
+    {
+        clk.setExternalClock2(false);
+    }
+
+    if (Connected(CV2))
+    {
+        midiOffset = CVtoMidiOffset(CVIn2());
+    }
+    else
+    {
+        midiOffset = 0;
+    }
+
     if (sendViz && tud_midi_n_mounted(0))
     {
         SendLiveStatus();
@@ -235,6 +260,8 @@ bool MainApp::PulseOutput2(bool requested)
     }
 
     PulseOut2(emit);
+    sendViz = true; // for testing
+
     return emit;
 }
 
@@ -256,7 +283,7 @@ bool(MainApp::tapReceived)()
     }
     else
     {
-        clk.setExternalClock1(false);
+        // clk.setExternalClock1(false); // Remove to check what happens
         return (SwitchChanged() && SwitchVal() == Down);
     }
 }
@@ -303,7 +330,25 @@ uint16_t MainApp::KnobY()
 
 bool MainApp::ModeSwitch()
 { // 1 = up 0 = middle (or down)
-    return SwitchVal() == Up;
+    // Start with the physical switch reading
+    bool switchUp = (SwitchVal() == Up);
+
+    // Read CV/Audio input
+    int16_t cv = AudioIn2();
+
+    // If CV strongly high (> +300) → force switchUp
+    if (cv > 300)
+    {
+        switchUp = true;
+    }
+    // If CV strongly low (< -300) → force switchDown
+    else if (cv < -300)
+    {
+        switchUp = false;
+    }
+    // Otherwise: leave switchUp as per physical switch
+
+    return switchUp;
 }
 
 bool MainApp::SwitchDown()
@@ -377,8 +422,7 @@ void MainApp::updateMainTuring()
     uint16_t dac = cv_map_u8(turingDAC1.DAC_8());
     AudioOut1(dac);
 
-    int midi_note = turingPWM1.MidiNote();
-
+    int midi_note = turingPWM1.MidiNote() + midiOffset;
     CVOut1MIDINote(midi_note);
 }
 
@@ -392,7 +436,8 @@ void MainApp::updateDivTuring()
     uint16_t dac = cv_map_u8(turingDAC2.DAC_8());
     AudioOut2(dac);
 
-    CVOut2MIDINote(turingPWM2.MidiNote());
+    int midi_note = turingPWM2.MidiNote() + midiOffset;
+    CVOut2MIDINote(midi_note);
 }
 
 uint32_t MainApp::MemoryCardID()
@@ -715,4 +760,130 @@ void MainApp::cv_set_mode(uint8_t mode)
 int16_t MainApp::cv_map_u8(uint8_t x)
 {
     return cv_lut[x]; // O(1) in the audio loop
+}
+
+int16_t MainApp::readInputIfConnected(Input inputType)
+{
+    if (Connected(inputType))
+    {
+        switch (inputType)
+        {
+        case Audio1:
+            return AudioIn1();
+        case Audio2:
+            return AudioIn2();
+        case CV1:
+            return CVIn1();
+        case CV2:
+            return CVIn2();
+        default:
+            return 0;
+        }
+    }
+    return 0;
+}
+
+#include <stdint.h>
+
+// Returns semitone offset above C3 (0..12).
+// VERY CRUDE AND UNCALIBRATED, TREAT AS EXPERIMENTAL
+int MainApp::CVtoMidiOffset(int16_t raw)
+{
+    if (raw == 0)
+        return 0; // disconnected -> offset 0
+
+    // Measured centers for C3..C4
+    static constexpr int16_t NOTE_COUNTS[13] = {
+        -10, // C3
+        34,  // C#3
+        58,  // D3
+        85,  // D#3
+        104, // E3
+        127, // F3
+        153, // F#3
+        175, // G3
+        202, // G#3
+        227, // A3
+        253, // A#3
+        278, // B3
+        303  // C4
+    };
+
+    // Midpoint thresholds *2 between adjacent notes (integer-only compare)
+    static constexpr int16_t MID_2X[12] = {
+        (-10 + 34),  // C3|C#3
+        (34 + 58),   // C#3|D3
+        (58 + 85),   // D3|D#3
+        (85 + 104),  // D#3|E3
+        (104 + 127), // E3|F3
+        (127 + 153), // F3|F#3
+        (153 + 175), // F#3|G3
+        (175 + 202), // G3|G#3
+        (202 + 227), // G#3|A3
+        (227 + 253), // A3|A#3
+        (253 + 278), // A#3|B3
+        (278 + 303)  // B3|C4
+    };
+
+    int c2 = int(raw) * 2;
+    int semi = 0;
+    while (semi < 12 && c2 >= MID_2X[semi])
+        ++semi;
+
+    // Clamp to 0..12 (handles e.g. -1500 -> 0, +1500 -> 12)
+    if (semi < 0)
+        semi = 0;
+    if (semi > 12)
+        semi = 12;
+    return semi;
+}
+
+void MainApp::onRisingEdgeAudio1()
+{
+    turingDAC1.reset();
+    turingDAC2.reset();
+    turingPWM1.reset();
+    turingPWM2.reset();
+    turingPulseLength1.reset();
+    turingPulseLength2.reset();
+}
+
+void MainApp::detectAudio1RisingEdge()
+{
+
+    static int16_t EDGE_THRESHOLD = 0;   // counts; 0 ≈ zero-crossing
+    static int16_t EDGE_HYSTERESIS = 32; // counts; ~1.5% FS (adjust as needed)
+    static int REFRACTORY_SAMPS = 48;    // samples @48kHz = 1 ms lockout
+
+    static bool inHigh = false; // Schmitt state
+    static int lockout = 0;     // refractory counter
+
+    const int16_t s = AudioIn1(); // −2048..2047 (96kHz avg -> fine to read @48k)
+
+    // Count down lockout if active
+    if (lockout > 0)
+        --lockout;
+
+    // Schmitt thresholds
+    const int16_t thHi = EDGE_THRESHOLD + EDGE_HYSTERESIS;
+    const int16_t thLo = EDGE_THRESHOLD - EDGE_HYSTERESIS;
+
+    if (!inHigh)
+    {
+        // Rising transition: only fire if out of lockout
+        if (s >= thHi && lockout == 0)
+        {
+            inHigh = true;
+            onRisingEdgeAudio1();
+            lockout = REFRACTORY_SAMPS; // minimal debounce
+        }
+    }
+    else
+    {
+        // Drop back to low only when safely below lower threshold
+        if (s <= thLo)
+        {
+            inHigh = false;
+        }
+    }
 }
