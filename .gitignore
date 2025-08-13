@@ -1,7 +1,12 @@
 # VS code
 .vscode/
 .DS_Store
-# Build
+# Build folder
+build/*
+!build/*.uf2
+!build/*.bin
+!build/*.hex
+
 pico-sdk/
 CMakeFiles/
 .csv
