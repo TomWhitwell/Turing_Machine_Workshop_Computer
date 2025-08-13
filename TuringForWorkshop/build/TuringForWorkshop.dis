@@ -3081,7 +3081,7 @@ Disassembly of section .text:
 200018ba:	49b0      	ldr	r1, [pc, #704]	@ (20001b7c <_ZN7MainApp12sysexRespondEv+0x2d4>)
 200018bc:	23a6      	movs	r3, #166	@ 0xa6
 200018be:	8091      	strh	r1, [r2, #4]
-200018c0:	2100      	movs	r1, #0
+200018c0:	2101      	movs	r1, #1
 200018c2:	257f      	movs	r5, #127	@ 0x7f
 200018c4:	005b      	lsls	r3, r3, #1
 200018c6:	58c3      	ldr	r3, [r0, r3]

@@ -9,7 +9,7 @@
 const int CARD_NUMBER = 0x03;
 const int MAJOR_VERSION = 0x01;
 const int MINOR_VERSION = 0x05;
-const int POINT_VERSION = 0x00;
+const int POINT_VERSION = 0x01;
 
 MainApp::MainApp()
 
