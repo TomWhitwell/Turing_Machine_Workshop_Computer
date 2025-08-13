@@ -279,7 +279,7 @@ x
 
   const EDITOR_MAJOR_VERSION = 0x00;
   const EDITOR_MINOR_VERSION = 0x01;
-  const EDITOR_POINT_VERSION = 0x01;
+  const EDITOR_POINT_VERSION = 0x02;
 
     const  SYSEX_START = 0xF0;
     const  SYSEX_END = 0xF7;
@@ -369,7 +369,7 @@ x
   function sendConfigRequest() {
     if (!midiOutput) return;
     const msg = [SYSEX_START, MANU_ID, CARD_NUMBER, CMD_SEND_CONFIG, SYSEX_END];
-    console.log("Sending config request:", hexArray(msg));
+//     console.log("Sending config request:", hexArray(msg));
     midiOutput.send(msg);
   }
 
@@ -378,7 +378,7 @@ x
     const raw = getConfigBytes();
     const payload = encode7BitSysex(raw);
     const msg = [SYSEX_START, MANU_ID, CARD_NUMBER, CMD_RECEIVE_CONFIG, ...payload, SYSEX_END];
-    console.log("Sending full config:", hexArray(msg));
+//     console.log("Sending full config:", hexArray(msg));
     midiOutput.send(msg);
   }
 
@@ -441,7 +441,6 @@ x
     if (d[0] !== SYSEX_START || d[1] !== MANU_ID || d[2] !== 0x03 || d[d.length - 1] !== SYSEX_END) return;
 
 
-  console.log("this is the data:", hexArray(d));
 
     const command = d[3];
     
@@ -455,10 +454,10 @@ x
 
     const payload = d.slice(7, d.length - 1); // Start payload AFTER cardversion 
 
-    console.log("handling entire message:", hexArray(d));
-    console.log("handling payload:", hexArray(payload));
+    // console.log("handling entire message:", hexArray(d));
+//     console.log("handling payload:", hexArray(payload));
       const decoded = decode7BitSysex(payload);
-          console.log("decoded payload:", hexArray(decoded));
+//           console.log("decoded payload:", hexArray(decoded));
       applyConfig(decoded);
   displayVersionInfo();
       
@@ -686,7 +685,7 @@ x
   let latestVersion = [0, 0, 0];
 
   try {
-    const response = await fetch("https://api.github.com/repos/TomWhitwell/Smith-Kakehashi/releases/latest");
+    const response = await fetch("https://api.github.com/repos/TomWhitwell/Turing_Machine_Workshop_Computer/releases/latest");
     if (response.ok) {
       const data = await response.json();
       const tag = data.tag_name || "";
@@ -722,7 +721,7 @@ x
   }
 
   if (isUpgradeAvailable) {
-    statusSpan.innerHTML = ` <a href="http://www.musicthing.co.uk/latest/" target="_blank" style="background-color: red; color: white; padding: 0.1em 0.4em; border-radius: 0.2em; text-decoration: none; font-weight: bold; margin-left: 0.5em;">UPGRADE AVAILABLE</a>`;
+    statusSpan.innerHTML = ` <a href="https://github.com/TomWhitwell/Turing_Machine_Workshop_Computer/releases" target="_blank" style="background-color: red; color: white; padding: 0.1em 0.4em; border-radius: 0.2em; text-decoration: none; font-weight: bold; margin-left: 0.5em;">UPGRADE AVAILABLE</a>`;
   } else {
     statusSpan.innerHTML = ` <span style="background-color: limegreen; color: black; padding: 0.1em 0.4em; border-radius: 0.2em; font-weight: bold; margin-left: 0.5em;">LATEST</span>`;
   }
@@ -738,16 +737,16 @@ x
   setupLiveStatusVisualizers();
   initMIDI();
 
-  // 
-  //   getLatestReleaseVersion('TomWhitwell', 'Smith-Kakehashi')
-  //   .then(version => {
-  //     if (version) {
-  //       console.log('Latest version:', version);
-  //     } else {
-  //       console.log('Could not retrieve version info');
-  //     }
-  //   });
-  // 
+  
+    getLatestReleaseVersion('TomWhitwell', 'Turing_Machine_Workshop_Computer')
+    .then(version => {
+      if (version) {
+        console.log('Latest version:', version);
+      } else {
+        console.log('Could not retrieve version info');
+      }
+    });
+  
 
 
 
