@@ -102,3 +102,8 @@
 1995	2126	1755014327671127856	CMakeFiles/TuringForWorkshop.dir/Users/tom/.pico-sdk/sdk/2.1.1/lib/tinyusb/hw/bsp/rp2040/family.c.o	e7f44fadfb3a9d35
 9	267	1755075271233680573	CMakeFiles/TuringForWorkshop.dir/Config.cpp.o	d489944622e1e20a
 267	689	1755075271492234578	TuringForWorkshop.elf	4e3513f75c8a76b9
+12	248	1755076461367894775	CMakeFiles/TuringForWorkshop.dir/Config.cpp.o	d489944622e1e20a
+12	256	1755076461368264190	CMakeFiles/TuringForWorkshop.dir/UI.cpp.o	ed2d170749dc8e5d
+256	491	1755076461611962133	TuringForWorkshop.elf	4e3513f75c8a76b9
+7	186	1755076742088160096	CMakeFiles/TuringForWorkshop.dir/UI.cpp.o	ed2d170749dc8e5d
+186	345	1755076742266751434	TuringForWorkshop.elf	4e3513f75c8a76b9

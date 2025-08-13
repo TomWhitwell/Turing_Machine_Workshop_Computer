@@ -85,9 +85,9 @@ void UI::SlowUI()
     uint16_t knobTemp = app->KnobY();
 
     // Add knob value
-    int16_t inputTemp = app->readInputIfConnected(ComputerCard::CV1); // returns zero if nothing connected 
+    int16_t inputTemp = app->readInputIfConnected(ComputerCard::CV1); // returns zero if nothing connected
     int16_t valueTemp = knobTemp + inputTemp;
-    CLAMP(valueTemp, minVal, maxVal); 
+    CLAMP(valueTemp, minVal, maxVal);
 
     uint16_t step = QuantiseToStep(valueTemp, numDivideSteps, 4095);
     if (step >= numDivideSteps)
@@ -155,7 +155,9 @@ void UI::TriggerPulse1()
 
         app->PulseLed1(true);
         outputPulseTicksRemaining1 = outputPulseLength;
+        ledPulseLength = outputPulseLength; // Sync LED pulses with output lengths, consider adding a lower clamp
         ledPulseTicksRemaining1 = ledPulseLength;
+
         ledPulseActive1 = true;
         outputPulseActive1 = true;
     }
@@ -169,6 +171,7 @@ void UI::TriggerPulse2()
 
     app->PulseLed2(active);
     outputPulseTicksRemaining2 = outputDivideLength;
+    ledPulseLength = outputPulseLength; // Sync LED pulses with output lengths, consider adding a lower clamp
     ledPulseTicksRemaining2 = ledPulseLength;
     ledPulseActive2 = true; // always prepare to end pulses no matter if they're turned on or not
     outputPulseActive2 = true;

@@ -67,16 +67,10 @@ void Config::save()
     memcpy(wr_buf, sector_buf, Config::BLOCK_SIZE); // old sector
     memcpy(wr_buf, &config, sizeof config);         // patch with new data
 
-    /* ---------- 3. Critical section ---------- */
-    // uint32_t ints = save_and_disable_interrupts(); // 1) IRQs off
-    // multicore_lockout_start_blocking();            // 2) park Core 1
+    /* ---------- 3. Write buffer ---------- */
 
-    // --- flash operations (uncomment when ready) ---
     flash_range_erase(OFFSET, FLASH_SECTOR_SIZE);
     flash_range_program(OFFSET, wr_buf, Config::BLOCK_SIZE);
-
-    // multicore_lockout_end_blocking(); // 3) release Core 1
-    // restore_interrupts(ints);         // 4) IRQs on
 }
 
 Config::Data &Config::get()
